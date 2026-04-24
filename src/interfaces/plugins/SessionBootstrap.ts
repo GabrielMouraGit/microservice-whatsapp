@@ -23,14 +23,15 @@ export class SessionBootstrap {
 
     console.log("Sessões encontradas:", sessionIds);
 
-    for (const sessionId of sessionIds) {
-      console.log(`🔄 Subindo sessão ${sessionId}`);
+    await Promise.all(
+      sessionIds.map(async (sessionId) => {
+        console.log(`🔄 Subindo sessão ${sessionId}`);
 
-      const session = await this.sessionRepository.findById(sessionId);
+        const session = await this.sessionRepository.findById(sessionId);
+        if (!session) return;
 
-      if (!session) continue;
-
-      await this.connector.connect(session.id, session.tenant_id);
-    }
+        return this.connector.connect(session.id, session.tenant_id);
+      }),
+    );
   }
 }

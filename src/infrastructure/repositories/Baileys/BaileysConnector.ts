@@ -20,6 +20,12 @@ export class BaileysConnector {
   ) {}
 
   async connect(sessionId: string, tenantId: string) {
+    const existing = this.sockets.get(sessionId);
+
+    if (existing) {
+      return { sock: existing };
+    }
+
     const { sock, saveCreds } = await this.createSocket(sessionId);
 
     this.handleConnection(sock, sessionId, tenantId);
@@ -85,15 +91,34 @@ export class BaileysConnector {
 
         console.log("status:", statusCode);
 
-        // ❌ NÃO mata direto
-        if (statusCode === 401) {
-          console.log("⚠️ possível sessão inválida (não vou apagar ainda)");
-          // this.logout(sessionId);
-          return;
+        // limpa socket antigo
+        const existing = this.sockets.get(sessionId);
+        if (existing) {
+          try {
+            existing.ws.close();
+          } catch {
+            this.sockets.delete(sessionId);
+          }
         }
 
-        console.log("🔄 reconectando...");
-        this.connect(sessionId, tenantId);
+        // sessão inválida
+        if (statusCode === 401) {
+          console.log("⚠️ sessão inválida → resetando");
+          await this.logout(sessionId);
+          return this.connect(sessionId, tenantId);
+        }
+
+        // timeout / rede
+        if (statusCode === 408) {
+          console.log("⏱ timeout → retry");
+          await new Promise((r) => setTimeout(r, 3000));
+          return this.connect(sessionId, tenantId);
+        }
+
+        // fallback
+        console.log("🔄 reconexão padrão");
+        await new Promise((r) => setTimeout(r, 5000));
+        return this.connect(sessionId, tenantId);
       }
     });
   }
