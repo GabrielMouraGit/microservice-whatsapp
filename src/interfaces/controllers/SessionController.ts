@@ -39,7 +39,9 @@ export class SessionController implements ISession {
   }): Promise<void> {
     const session = await this.sessionRepository.findById(data.id);
 
-    if (!session) throw new DomainError("Session não encontrada");
+    if (!session || session.tenant_id != data.tenant_id) {
+      throw new DomainError("Session não encontrada");
+    }
 
     session.name = data.name;
     session.descricao = data.descricao;
@@ -52,5 +54,18 @@ export class SessionController implements ISession {
     if (!session) throw new DomainError("Session não encontrada");
 
     return session.toDTO();
+  }
+
+  async newQRCode(
+    session_id: string,
+    tenant_id: string,
+  ): Promise<{ qr: string }> {
+    const session = await this.sessionRepository.findById(session_id);
+
+    if (!session || session.tenant_id != tenant_id) {
+      throw new DomainError("Session não encontrada");
+    }
+
+    return await this.runAdapter.newQrCode(session);
   }
 }

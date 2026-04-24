@@ -41,4 +41,12 @@ export class SessionAdapters {
 
     return await this.controller.findById(session_id, tenant_id);
   }
+  async httpNewQRCode(request: FastifyRequest) {
+    const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
+    const { session_id } = request.body as {
+      session_id: string;
+    };
+
+    return await this.controller.newQRCode(session_id, tenant_id);
+  }
 }

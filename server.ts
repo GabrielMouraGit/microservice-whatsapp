@@ -27,10 +27,15 @@ async function start() {
     repositorySession,
   );
 
-  await sessionBootstrap.init();
+  // sobe API primeiro
   await fastify.listen({ port: 3060, host: "0.0.0.0" });
 
-  console.log("🚀 Server rodando + sessões inicializadas");
+  console.log("🚀 API rodando");
+
+  // roda bootstrap em background (não bloqueia API)
+  sessionBootstrap.init().catch((err) => {
+    console.error("Erro ao inicializar sessões:", err);
+  });
 }
 
 start();

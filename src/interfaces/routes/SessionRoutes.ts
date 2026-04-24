@@ -21,4 +21,8 @@ export async function SessionRoutes(net: FastifyInstance) {
   net.post("/api/v1/session/create", adapters.httpCreate.bind(adapters));
   net.post("/api/v1/session/update", adapters.httpUpdate.bind(adapters));
   net.post("/api/v1/session/get-by-id", adapters.httpFindById.bind(adapters));
+  net.post(
+    "/api/v1/session/new-qr-code",
+    adapters.httpNewQRCode.bind(adapters),
+  );
 }

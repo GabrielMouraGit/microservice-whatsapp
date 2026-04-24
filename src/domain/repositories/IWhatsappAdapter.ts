@@ -2,6 +2,7 @@ import { Session } from "../entities/Session";
 
 export interface IWhatsappAdapter {
   createSession(session: Session): Promise<void>;
+  newQrCode(session: Session): Promise<{ qr: string }>;
   sendText(sessionId: string, number: string, text: string): Promise<void>;
 }
 

@@ -14,6 +14,8 @@ import fs from "fs";
 import path from "path";
 
 export class BaileysConnector {
+  private qrResolvers = new Map<string, (qr: string) => void>();
+
   constructor(
     private sockets: SessionManager,
     private events: EventBus<SessionEvents>,
@@ -33,7 +35,12 @@ export class BaileysConnector {
 
     this.sockets.set(sessionId, sock);
 
-    return { sock };
+    const qrPromise = this.waitQr(sessionId);
+
+    return {
+      sock,
+      qr: (await qrPromise) || "",
+    };
   }
 
   private async createSocket(sessionId: string) {
@@ -70,6 +77,10 @@ export class BaileysConnector {
           tenantId,
           qr: qrBase64,
         });
+
+        // helper
+        this.qrResolvers.get(sessionId)?.(qrBase64);
+        this.qrResolvers.delete(sessionId);
       }
 
       // CONECTADO
@@ -196,11 +207,19 @@ export class BaileysConnector {
   getSocket(sessionId: string) {
     return this.sockets.get(sessionId);
   }
+  private waitQr(sessionId: string) {
+    return new Promise<string>((resolve) => {
+      this.qrResolvers.set(sessionId, resolve);
+    });
+  }
+
   async regenerateQr(sessionId: string, tenantId: string) {
     //  logout
     await this.logout(sessionId);
 
     // 2. reconecta
-    return this.connect(sessionId, tenantId);
+    const { qr } = await this.connect(sessionId, tenantId);
+
+    return { qr };
   }
 }

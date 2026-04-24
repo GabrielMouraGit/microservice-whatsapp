@@ -13,4 +13,5 @@ export interface ISession {
     tenant_id: string;
   }): Promise<void>;
   findById(session_id: string, tenant_id: string): Promise<SessionDTO>;
+  newQRCode(session_id: string, tenant_id: string): Promise<{ qr: string }>;
 }

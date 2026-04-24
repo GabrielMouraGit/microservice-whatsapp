@@ -14,6 +14,11 @@ export class BaileysRepository {
 
     return { sessionId };
   }
+  async newQrCode(sessionId: string, tenantId: string) {
+    const { qr } = await this.connector.regenerateQr(sessionId, tenantId);
+
+    return { qr };
+  }
 
   private async getReadySocket(sessionId: string): Promise<WASocket> {
     let sock = this.sessions.get(sessionId);
