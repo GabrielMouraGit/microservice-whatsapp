@@ -167,6 +167,34 @@ model MessageContext {
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 }
 
+
+model MessageEventLog {
+  id          String   @id @default(uuid())
+
+  session_id  String
+  tenant_id   String
+
+  event_name  String   
+  message_id  String?  
+
+  payload     Json     
+
+  status      EventStatus @default(pending)
+
+  error       String?
+
+  created_at  DateTime @default(now())
+  processed_at DateTime?
+}
+
+enum EventStatus {
+  pending
+  processed
+  failed
+}
+
+
+
 model Session {
   id          String   @id @default(uuid())
   name        String
