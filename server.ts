@@ -1,10 +1,11 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { baileysConnector } from "container";
 import HandlerRequest from "@/interfaces/plugins/HandlerRequest";
 import { SessionRoutes } from "@/interfaces/routes/SessionRoutes";
 import { SessionBootstrap } from "@/interfaces/plugins/SessionBootstrap";
 import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRepositoryPrisma";
-import { baileysConnector } from "container";
+import { registerEventHandlers } from "@/infrastructure/events/register";
 
 const fastify = Fastify({ logger: true });
 
@@ -20,6 +21,8 @@ fastify.get("/status", async () => {
 });
 
 async function start() {
+  registerEventHandlers();
+
   const repositorySession = new SessionRepositoryPrisma();
 
   const sessionBootstrap = new SessionBootstrap(
@@ -32,7 +35,6 @@ async function start() {
 
   console.log("🚀 API rodando");
 
-  // roda bootstrap em background (não bloqueia API)
   sessionBootstrap.init().catch((err) => {
     console.error("Erro ao inicializar sessões:", err);
   });

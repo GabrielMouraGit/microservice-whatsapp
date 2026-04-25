@@ -22,4 +22,10 @@ export type SessionEvents = {
     tenantId: string;
     data: WebhookWhatsapp | null;
   };
+  "session.logs": {
+    sessionId: string;
+    tenantId: string;
+    eventName: string;
+    payload: unknown;
+  };
 };

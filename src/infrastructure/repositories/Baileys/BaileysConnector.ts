@@ -12,6 +12,9 @@ import { BaileysToWhatpyMapper } from "./BaileysToWhatpyMapper";
 import { DomainError } from "@/domain/utils/DomainError";
 import fs from "fs";
 import path from "path";
+import { EventLog } from "@/domain/entities/EventLog";
+import { DomainEventDispatcher } from "@/domain/events/DomainEventDispatcher";
+import { AppEvents } from "container";
 
 export class BaileysConnector {
   private qrResolvers = new Map<string, (qr: string) => void>();
@@ -19,6 +22,7 @@ export class BaileysConnector {
   constructor(
     private sockets: SessionManager,
     private events: EventBus<SessionEvents>,
+    private dispatcher: DomainEventDispatcher<AppEvents>,
   ) {}
 
   async connect(sessionId: string, tenantId: string) {
@@ -151,6 +155,10 @@ export class BaileysConnector {
 
       if (m.type !== "notify") return;
 
+      const log = new EventLog(sessionId, tenantId);
+
+      log.log("messages.upsert.raw", m);
+
       const mapped = BaileysToWhatpyMapper.map(m.messages);
 
       await this.events.emit("message.received", {
@@ -158,6 +166,10 @@ export class BaileysConnector {
         tenantId,
         data: mapped,
       });
+
+      log.done();
+
+      this.dispatcher.dispatch(log);
     });
   }
 
