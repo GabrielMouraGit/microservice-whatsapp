@@ -18,6 +18,7 @@ import { ITypeSessionEvents } from "@/domain/events/ITypeSessionEvents";
 
 export class BaileysConnector {
   private qrResolvers = new Map<string, (qr: string) => void>();
+  private reconnecting = new Set<string>();
 
   constructor(
     private sockets: SessionManager,
@@ -28,8 +29,8 @@ export class BaileysConnector {
   async connect(sessionId: string, tenantId: string) {
     const existing = this.sockets.get(sessionId);
 
-    if (existing) {
-      console.log("Ja existe");
+    if (existing && existing.user) {
+      console.log("Já conectado");
       return { sock: existing };
     }
 
@@ -99,7 +100,6 @@ export class BaileysConnector {
           qr: qrBase64,
         });
 
-        // helper
         this.qrResolvers.get(sessionId)?.(qrBase64);
         this.qrResolvers.delete(sessionId);
       }
@@ -107,6 +107,10 @@ export class BaileysConnector {
       // CONECTADO
       if (connection === "open") {
         console.log("✅ conectado");
+
+        // 🔥 importante: limpar flag de reconexão
+        this.reconnecting.delete(sessionId);
+
         await this.events.emit("session.connected", {
           sessionId,
           tenantId,
@@ -123,32 +127,45 @@ export class BaileysConnector {
 
         console.log("status:", statusCode);
 
-        // limpa socket antigo
+        // SEMPRE remove o socket antigo
         const existing = this.sockets.get(sessionId);
+
         if (existing) {
           try {
             existing.ws.close();
-          } catch {
-            this.sockets.delete(sessionId);
+          } catch (err) {
+            console.log("existing.ws.close", err);
           }
         }
 
-        // sessão inválida
+        this.sockets.delete(sessionId);
+
+        // evita reconexão duplicada
+        if (this.reconnecting.has(sessionId)) {
+          console.log("⏳ já reconectando...");
+          return;
+        }
+
+        this.reconnecting.add(sessionId);
+
+        // sessão inválida → precisa limpar tudo
         if (statusCode === 401) {
           console.log("⚠️ sessão inválida → resetando");
           await this.logout(sessionId);
-          return this.connect(sessionId, tenantId);
         }
 
-        // timeout / rede
-        if (statusCode === 408) {
-          console.log("⏱ timeout → retry");
-          return this.connect(sessionId, tenantId);
-        }
+        console.log("🔄 tentando reconectar...");
 
-        // fallback
-        console.log("🔄 reconexão padrão");
-        return this.connect(sessionId, tenantId);
+        // retry com delay (evita loop agressivo)
+        setTimeout(async () => {
+          try {
+            await this.connect(sessionId, tenantId);
+          } catch (err) {
+            console.log("❌ erro ao reconectar:", err);
+          } finally {
+            this.reconnecting.delete(sessionId);
+          }
+        }, 2000);
       }
     });
   }
