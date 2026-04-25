@@ -25,4 +25,7 @@ export async function SessionRoutes(net: FastifyInstance) {
     "/api/v1/session/new-qr-code",
     adapters.httpNewQRCode.bind(adapters),
   );
+  net.post("/api/v1/session/logout", adapters.httpLogout.bind(adapters));
+  net.post("/api/v1/session/delete", adapters.httpDeleteSession.bind(adapters));
+  net.get("/api/v1/sessions", adapters.httpAllSession.bind(adapters));
 }

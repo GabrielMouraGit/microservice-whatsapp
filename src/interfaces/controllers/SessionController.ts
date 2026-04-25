@@ -68,4 +68,30 @@ export class SessionController implements ISession {
 
     return await this.runAdapter.newQrCode(session);
   }
+  async deleteSession(session_id: string, tenant_id: string): Promise<void> {
+    const session = await this.sessionRepository.findById(session_id);
+
+    if (!session || session.tenant_id != tenant_id) {
+      throw new DomainError("Session não encontrada");
+    }
+
+    await this.sessionRepository.delete(session.id, tenant_id);
+    await this.runAdapter.logout(session.id);
+  }
+  async logout(session_id: string, tenant_id: string): Promise<void> {
+    const session = await this.sessionRepository.findById(session_id);
+
+    if (!session || session.tenant_id != tenant_id) {
+      throw new DomainError("Session não encontrada");
+    }
+
+    await this.runAdapter.logout(session.id);
+  }
+
+  async findAll(tenant_id: string): Promise<SessionDTO[]> {
+    const sessions = await this.sessionRepository.findAllByTenant(tenant_id);
+    if (!sessions) return [];
+
+    return await sessions.map((s) => s.toDTO());
+  }
 }

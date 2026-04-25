@@ -25,6 +25,7 @@ export class BaileysConnector {
     const existing = this.sockets.get(sessionId);
 
     if (existing) {
+      console.log("Ja existe");
       return { sock: existing };
     }
 
@@ -122,13 +123,11 @@ export class BaileysConnector {
         // timeout / rede
         if (statusCode === 408) {
           console.log("⏱ timeout → retry");
-          await new Promise((r) => setTimeout(r, 3000));
           return this.connect(sessionId, tenantId);
         }
 
         // fallback
         console.log("🔄 reconexão padrão");
-        await new Promise((r) => setTimeout(r, 5000));
         return this.connect(sessionId, tenantId);
       }
     });

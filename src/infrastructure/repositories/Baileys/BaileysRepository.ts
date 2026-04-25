@@ -36,6 +36,10 @@ export class BaileysRepository {
     return sock;
   }
 
+  async logout(sessionId: string): Promise<void> {
+    await this.connector.logout(sessionId);
+  }
+
   private waitForConnection(sock: WASocket) {
     return new Promise<void>((resolve, reject) => {
       if (sock.user) return resolve();
