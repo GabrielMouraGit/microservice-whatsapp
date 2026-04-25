@@ -6,6 +6,6 @@ export class MessageEventLogStatusEvent implements IMessageEvent {
     public readonly uuid: string,
     public readonly sessionId: string,
     public readonly tenantId: string,
-    public readonly status: "done" | "failed",
+    public readonly status: "processed" | "failed",
   ) {}
 }

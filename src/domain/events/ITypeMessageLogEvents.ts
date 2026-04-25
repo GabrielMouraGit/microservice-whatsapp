@@ -4,13 +4,15 @@ export type ITypeMessageLogEvents = {
     sessionId: string;
     tenantId: string;
     eventName: string;
-    payload: unknown;
+    payload: object;
+    name: string;
   };
 
   "message.event.status.changed": {
     uuid: string;
     sessionId: string;
     tenantId: string;
-    status: "done" | "failed";
+    status: "processed" | "failed";
+    name: string;
   };
 };

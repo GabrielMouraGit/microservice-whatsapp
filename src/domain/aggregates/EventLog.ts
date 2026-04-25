@@ -33,7 +33,7 @@ export class EventLog extends EventRoot {
         this._uuid,
         this._sessionId,
         this._tenantId,
-        "done",
+        "processed",
       ),
     );
   }

@@ -11,6 +11,7 @@ export class MessageEventLogRepository implements IMessageEventLogRepository {
   async save(data: MessageEventLogInput): Promise<MessageEventLogOutput> {
     const result = await $prismaClient.messageEventLog.create({
       data: {
+        id: data.id,
         session_id: data.sessionId,
         tenant_id: data.tenantId,
         event_name: data.eventName,
@@ -18,6 +19,54 @@ export class MessageEventLogRepository implements IMessageEventLogRepository {
       },
     });
 
+    return this.mapToOutput(result);
+  }
+
+  async markAsProcessed(id: string): Promise<void> {
+    await $prismaClient.messageEventLog.update({
+      where: { id },
+      data: {
+        status: "processed",
+        processed_at: new Date(),
+        error: null,
+      },
+    });
+  }
+
+  async markAsFailed(id: string): Promise<void> {
+    await $prismaClient.messageEventLog.update({
+      where: { id },
+      data: {
+        status: "failed",
+      },
+    });
+  }
+
+  async findPending(limit = 50): Promise<MessageEventLogOutput[]> {
+    const results = await $prismaClient.messageEventLog.findMany({
+      where: {
+        status: "pending",
+      },
+      orderBy: {
+        created_at: "asc", // importante pra FIFO
+      },
+      take: limit,
+    });
+
+    return results.map(this.mapToOutput);
+  }
+
+  async findById(id: string): Promise<MessageEventLogOutput | null> {
+    const result = await $prismaClient.messageEventLog.findUnique({
+      where: { id },
+    });
+
+    if (!result) return null;
+
+    return this.mapToOutput(result);
+  }
+
+  private mapToOutput(result: any): MessageEventLogOutput {
     return {
       id: result.id,
       sessionId: result.session_id,
@@ -27,6 +76,7 @@ export class MessageEventLogRepository implements IMessageEventLogRepository {
       createdAt: result.created_at,
     };
   }
+
   private safeJson(value: unknown) {
     try {
       return JSON.parse(
