@@ -16,7 +16,6 @@ export const messageAudioSchema = z.object({
     (val) => (val !== undefined ? Number(val) : undefined),
     z.number().optional(),
   ),
-  tenant_id: z.uuid(),
   link: z.string(),
 });
 

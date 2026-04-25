@@ -4,7 +4,6 @@ export const messageContextSchema = z.object({
   quoted_id: z.string(),
   quoted_author: z.string(),
   quoted_type: z.string(),
-  tenant_id: z.uuid(),
 });
 
 export type MessageContextDTO = z.infer<typeof messageContextSchema>;

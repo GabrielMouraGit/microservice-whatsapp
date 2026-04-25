@@ -18,7 +18,7 @@ export interface WhatsAppMessageImage {
   sha256: string;
   caption?: string;
   width?: number;
-  link?: string;
+  link: string;
   height?: number;
   preview?: string; // base64
 }
@@ -29,7 +29,7 @@ export interface WhatsAppMessageVideo {
   file_size: number;
   sha256: string;
   width?: number;
-  link?: string;
+  link: string;
   height?: number;
   seconds?: number; // duração do vídeo
   preview?: string; // base64
@@ -41,7 +41,7 @@ export interface WhatsAppMessageVoice {
   mime_type: string;
   file_size: number;
   sha256: string;
-  link?: string;
+  link: string;
   seconds: number; // duração do áudio
 }
 export interface WhatsAppMessageReplyList {
@@ -77,7 +77,7 @@ export interface WhatsAppMessageAudio {
   mime_type: string;
   file_size: number;
   sha256: string;
-  link?: string;
+  link: string;
   seconds?: number;
 }
 
@@ -94,10 +94,22 @@ export interface WhatsAppMessageDocument {
   mime_type: string;
   file_size: number;
   sha256: string;
-  link?: string;
-  file_name: string; // nome do arquivo enviado
-  filename?: string; // às vezes usado também
+  link: string;
+  file_name: string;
+  filename: string;
   caption?: string;
+}
+
+export interface WhatsAppMessageSticker {
+  id: string;
+  mime_type: string;
+  file_size: number;
+  sha256: string;
+  link: string;
+  is_animated?: boolean;
+  is_ai_sticker?: boolean;
+  is_lottie?: boolean;
+  preview?: string;
 }
 
 export interface WhatsAppMessage {
@@ -128,29 +140,6 @@ export interface WhatsAppMessage {
   context?: WhatsAppMessageContext;
   from: string;
   from_name: string;
-}
-
-export interface WhatsAppMessageSticker {
-  id: string;
-  mime_type: string;
-  file_size: number;
-  sha256: string;
-  link?: string;
-  is_animated?: boolean;
-  is_ai_sticker?: boolean;
-  is_lottie?: boolean;
-  preview?: string;
-}
-export interface WhatsAppMessageSticker {
-  id: string;
-  mime_type: string;
-  file_size: number;
-  sha256: string;
-  link?: string;
-  is_animated?: boolean;
-  is_ai_sticker?: boolean;
-  is_lottie?: boolean;
-  preview?: string;
 }
 
 export interface WhatsAppEvent {

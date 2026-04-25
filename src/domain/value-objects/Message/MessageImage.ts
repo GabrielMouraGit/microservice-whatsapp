@@ -6,7 +6,6 @@ export const messageImageSchema = z.object({
   file_size: z.number(),
   sha256: z.string(),
   link: z.string(),
-  tenant_id: z.uuid(),
   width: z.number().nullable().optional(),
   height: z.number().nullable().optional(),
   caption: z.string().nullable().optional(),

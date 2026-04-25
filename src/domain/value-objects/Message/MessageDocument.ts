@@ -7,7 +7,6 @@ export const messageDocumentSchema = z.object({
   sha256: z.string(),
   filename: z.string(),
   link: z.string(),
-  tenant_id: z.uuid(),
 });
 
 export type MessageDocumentDTO = z.infer<typeof messageDocumentSchema>;

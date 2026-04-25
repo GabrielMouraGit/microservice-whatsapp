@@ -39,24 +39,22 @@ export const messageTypeSchema = z.enum([
 export type MessageType = z.infer<typeof messageTypeSchema>;
 
 export const messageSchema = z.object({
-  id: z.string().min(6),
-  chat_id: z.string(),
+  id: z.string(),
+  from_me: z.boolean(),
   type: z.string(),
+  chat_id: z.string(),
   from: z.string(),
   from_name: z.string(),
-  from_me: z.boolean(),
   source: z.string(),
   forwarded: z.boolean(),
   is_read: z.boolean(),
   timestamp: z.coerce.date(),
-  tenant_id: z.uuid(),
   text: messageTextSchema.optional(),
   image: messageImageSchema.optional(),
   video: messageVideoSchema.optional(),
   audio: messageAudioSchema.optional(),
   document: messageDocumentSchema.optional(),
   context: messageContextSchema.optional(),
-
   created_at: z.coerce.date().optional(),
 });
 
@@ -71,7 +69,6 @@ export class Message {
   private _from_me: boolean;
   private _is_read: boolean;
   private _forwarded: boolean;
-  private _tenant_id: string;
   private _source: string;
 
   private _text?: MessageText;
@@ -95,7 +92,7 @@ export class Message {
     this._is_read = props.is_read;
     this._forwarded = props.forwarded;
     this._timestamp = props.timestamp;
-    this._tenant_id = props.tenant_id;
+
     this._created_at = props.created_at;
 
     if (props.text) this._text = new MessageText(props.text);
@@ -166,9 +163,7 @@ export class Message {
   get video() {
     return this._video;
   }
-  get tenant_id() {
-    return this._tenant_id;
-  }
+
   get context() {
     return this._context;
   }
@@ -216,7 +211,6 @@ export class Message {
       timestamp: this._timestamp,
       forwarded: this._forwarded,
       is_read: this._is_read,
-      tenant_id: this._tenant_id,
       created_at: this._created_at,
 
       text: this._text?.toDTO(),

@@ -5,7 +5,7 @@ export const messageVideoSchema = z.object({
   mime_type: z.string(),
   file_size: z.number(),
   sha256: z.string(),
-  tenant_id: z.uuid(),
+
   width: z.number().nullable().optional(),
   height: z.number().nullable().optional(),
   seconds: z.number().nullable().optional(),
