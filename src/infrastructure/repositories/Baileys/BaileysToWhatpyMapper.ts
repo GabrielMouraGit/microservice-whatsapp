@@ -217,13 +217,21 @@ export class BaileysToWhatpyMapper {
     return {
       id: msg.key.id || "",
       from_me: msg.key.fromMe || false,
-      chat_id: msg.key.remoteJid || "",
+      chat_id: msg.key.remoteJidAlt || msg.key.remoteJid || "",
       timestamp: Number(msg.messageTimestamp) || 0,
       source: "baileys",
       starred: false,
       status: "sent",
-      from: msg.key.remoteJid?.replace("@s.whatsapp.net", "") || "",
-      from_name: msg.pushName || "",
+      from: msg.key.remoteJidAlt?.includes("@s.whatsapp.net")
+        ? msg.key.remoteJidAlt?.replace("@s.whatsapp.net", "")
+        : msg.key.remoteJid?.replace("@s.whatsapp.net", "") || "",
+      from_name:
+        msg.pushName
+          ?.toLowerCase()
+          .trim()
+          .split(/\s+/)
+          .map((word) => word[0].toUpperCase() + word.slice(1))
+          .join(" ") || "",
     };
   }
 
