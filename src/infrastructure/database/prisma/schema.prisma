@@ -44,15 +44,15 @@ model Contact {
 
   tenant_id                        String  
   tenant   Tenant @relation(fields: [tenant_id], references: [id])
-  messages Message[]
+
 }
 
 
 model Message {
   id         String     @id @default(uuid())
-  contact_id String
+  chat_id    String
+  session_id String
   type       MessageType
-
   from       String
   from_name  String
   from_me    Boolean  @default(false)
@@ -70,7 +70,6 @@ model Message {
   document MessageDocument?
   context  MessageContext?
 
-  contact Contact @relation(fields: [contact_id], references: [id])
   tenant_id                        String  
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 }
