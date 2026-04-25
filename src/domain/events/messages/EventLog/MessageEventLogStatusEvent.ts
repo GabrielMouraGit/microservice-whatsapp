@@ -1,4 +1,6 @@
-export class MessageEventLogStatusEvent {
+import { IMessageEvent } from "@/domain/repositories/IMessageEvent";
+
+export class MessageEventLogStatusEvent implements IMessageEvent {
   public name = "message.event.status.changed";
   constructor(
     public readonly uuid: string,

@@ -6,15 +6,16 @@ import makeWASocket, {
 import QRCode from "qrcode";
 import pino from "pino";
 import { SessionManager } from "../SessionManager";
-import { SessionEvents } from "@/domain/events/SessionEvents";
+
 import { EventBus } from "@/infrastructure/events/EventBus";
 import { BaileysToWhatpyMapper } from "./BaileysToWhatpyMapper";
 import { DomainError } from "@/domain/utils/DomainError";
 import fs from "fs";
 import path from "path";
-import { EventLog } from "@/domain/entities/EventLog";
-import { DomainEventDispatcher } from "@/domain/events/DomainEventDispatcher";
 import { AppEvents } from "container";
+import { DomainEventDispatcher } from "@/infrastructure/events/DomainEventDispatcher";
+import { SessionEvents } from "@/domain/events/ITypeSessionEvents";
+import { EventLog } from "@/domain/aggregates/EventLog";
 
 export class BaileysConnector {
   private qrResolvers = new Map<string, (qr: string) => void>();

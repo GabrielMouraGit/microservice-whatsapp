@@ -5,7 +5,7 @@ import HandlerRequest from "@/interfaces/plugins/HandlerRequest";
 import { SessionRoutes } from "@/interfaces/routes/SessionRoutes";
 import { SessionBootstrap } from "@/interfaces/plugins/SessionBootstrap";
 import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRepositoryPrisma";
-import { registerEventHandlers } from "@/infrastructure/events/register";
+import { registerEventHandlers } from "@/infrastructure/events/RegisterEvents";
 
 const fastify = Fastify({ logger: true });
 

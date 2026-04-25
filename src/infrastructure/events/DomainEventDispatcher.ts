@@ -1,7 +1,7 @@
 import { EventBus } from "@/infrastructure/events/EventBus";
 import { EventRoot } from "./EventRoot";
 
-export class DomainEventDispatcher<T extends Record<string, any>> {
+export class DomainEventDispatcher<T extends Record<string, unknown>> {
   constructor(private eventBus: EventBus<T>) {}
 
   async dispatch(aggregate: EventRoot) {

@@ -1,7 +1,7 @@
-import { MessageEventLoggedEvent } from "../events/EventLog/MessageEventLoggedEvent";
-import { MessageEventLogStatusEvent } from "../events/EventLog/MessageEventLogStatusEvent";
-import { EventRoot } from "../events/EventRoot";
+import { EventRoot } from "@/infrastructure/events/EventRoot";
 import { v4 as uuidv4 } from "uuid";
+import { MessageEventLoggedEvent } from "../events/messages/EventLog/MessageEventLoggedEvent";
+import { MessageEventLogStatusEvent } from "../events/messages/EventLog/MessageEventLogStatusEvent";
 
 export class EventLog extends EventRoot {
   private _sessionId: string;
