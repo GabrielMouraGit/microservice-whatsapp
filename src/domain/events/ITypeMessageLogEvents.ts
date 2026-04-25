@@ -1,4 +1,4 @@
-export type MessageLogEvents = {
+export type ITypeMessageLogEvents = {
   "message.event.logged": {
     uuid: string;
     sessionId: string;

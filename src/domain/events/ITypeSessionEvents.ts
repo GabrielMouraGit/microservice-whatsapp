@@ -1,6 +1,6 @@
 import { WebhookWhatsapp } from "../repositories/IWhatsappAdapter";
 
-export type SessionEvents = {
+export type ITypeSessionEvents = {
   "session.qr.generated": {
     sessionId: string;
     tenantId: string;

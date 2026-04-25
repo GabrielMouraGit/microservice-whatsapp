@@ -6,7 +6,6 @@ import makeWASocket, {
 import QRCode from "qrcode";
 import pino from "pino";
 import { SessionManager } from "../SessionManager";
-
 import { EventBus } from "@/infrastructure/events/EventBus";
 import { BaileysToWhatpyMapper } from "./BaileysToWhatpyMapper";
 import { DomainError } from "@/domain/utils/DomainError";
@@ -14,15 +13,15 @@ import fs from "fs";
 import path from "path";
 import { AppEvents } from "container";
 import { DomainEventDispatcher } from "@/infrastructure/events/DomainEventDispatcher";
-import { SessionEvents } from "@/domain/events/ITypeSessionEvents";
 import { EventLog } from "@/domain/aggregates/EventLog";
+import { ITypeSessionEvents } from "@/domain/events/ITypeSessionEvents";
 
 export class BaileysConnector {
   private qrResolvers = new Map<string, (qr: string) => void>();
 
   constructor(
     private sockets: SessionManager,
-    private events: EventBus<SessionEvents>,
+    private events: EventBus<ITypeSessionEvents>,
     private dispatcher: DomainEventDispatcher<AppEvents>,
   ) {}
 
@@ -59,8 +58,24 @@ export class BaileysConnector {
     const sock = makeWASocket({
       auth: state,
       version,
+
+      // produção
       printQRInTerminal: false,
-      logger: pino({ level: "silent" }),
+      logger: pino({ level: "error" }),
+
+      // controle de histórico
+      syncFullHistory: false,
+
+      // performance
+      markOnlineOnConnect: false,
+      emitOwnEvents: false,
+
+      // estabilidade
+      retryRequestDelayMs: 500,
+      maxMsgRetryCount: 3,
+
+      // evita payload gigante
+      defaultQueryTimeoutMs: 60_000,
     });
 
     return { sock, saveCreds };
@@ -153,24 +168,26 @@ export class BaileysConnector {
 
     sock.ev.on("messages.upsert", async (m) => {
       console.log("📩 mensagem recebida");
-
-      if (m.type !== "notify") return;
-
       const log = new EventLog(sessionId, tenantId);
+      try {
+        if (m.type !== "notify") return;
 
-      log.log("messages.upsert.raw", m);
+        log.log("messages.upsert.raw", m);
 
-      const mapped = BaileysToWhatpyMapper.map(m.messages);
+        const mapped = BaileysToWhatpyMapper.map(m.messages);
 
-      await this.events.emit("message.received", {
-        sessionId,
-        tenantId,
-        data: mapped,
-      });
+        await this.events.emit("message.received", {
+          sessionId,
+          tenantId,
+          data: mapped,
+        });
 
-      log.done();
-
-      this.dispatcher.dispatch(log);
+        log.done();
+      } catch {
+        log.fail();
+      } finally {
+        this.dispatcher.dispatch(log);
+      }
     });
   }
 
