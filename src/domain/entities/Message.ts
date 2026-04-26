@@ -148,6 +148,9 @@ export class Message {
   get from_me() {
     return this._from_me;
   }
+  get from_name() {
+    return this._from_name;
+  }
   get contact_id() {
     return this._chat_id;
   }

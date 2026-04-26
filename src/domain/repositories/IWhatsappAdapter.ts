@@ -46,6 +46,15 @@ export interface IWhatsappAdapter {
     mimetype: string,
     quoted_id: string,
   ): Promise<void>;
+  getContact(
+    sessionId: string,
+    number: string,
+  ): Promise<{
+    jid: string;
+    name: string;
+    exists: boolean;
+    profilePicUrl: string;
+  }>;
 }
 
 export interface WhatsAppMessageText {

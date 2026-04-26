@@ -202,4 +202,108 @@ export class MessageRepository implements IMessageRepository {
       throw new DomainError("Failed to save message");
     }
   }
+  async getMessagesLastMessageByChatId(
+    chat_id: string,
+  ): Promise<Message | null> {
+    try {
+      const msg = await $prismaClient.message.findFirst({
+        where: {
+          chat_id,
+        },
+        orderBy: {
+          timestamp: "desc", // ou created_at se preferir
+        },
+        include: {
+          text: true,
+          image: true,
+          video: true,
+          audio: true,
+          document: true,
+          context: true,
+        },
+      });
+
+      if (!msg) return null;
+
+      return Message.restore({
+        id: msg.id,
+        chat_id: msg.chat_id,
+        type: msg.type,
+        from: msg.from,
+        from_name: msg.from_name,
+        from_me: msg.from_me,
+        source: msg.source,
+        is_read: msg.is_read,
+        timestamp: msg.timestamp,
+        created_at: msg.created_at,
+        forwarded: msg.forwarded,
+
+        text: msg.text
+          ? {
+              body: msg.text.body,
+            }
+          : undefined,
+
+        image: msg.image
+          ? {
+              file_size: msg.image.file_size || 0,
+              id: msg.image.id || "",
+              link: msg.image.link || "",
+              mime_type: msg.image.mime_type || "",
+              sha256: msg.image.sha256 || "",
+              caption: msg.image.caption || "",
+              height: msg.image.height || 0,
+              width: msg.image.width || 0,
+            }
+          : undefined,
+
+        video: msg.video
+          ? {
+              id: msg.video.id,
+              mime_type: msg.video.mime_type,
+              file_size: msg.video.file_size,
+              sha256: msg.video.sha256,
+              link: msg.video.link ?? "",
+              width: msg.video.width ?? null,
+              height: msg.video.height ?? null,
+              seconds: msg.video.seconds ?? null,
+              caption: msg.video.caption ?? null,
+            }
+          : undefined,
+
+        audio: msg.audio
+          ? {
+              id: msg.audio.id,
+              mime_type: msg.audio.mime_type,
+              file_size: msg.audio.file_size,
+              sha256: msg.audio.sha256,
+              link: msg.audio.link ?? "",
+              seconds: msg.audio.seconds ?? 0,
+            }
+          : undefined,
+
+        document: msg.document
+          ? {
+              id: msg.document.id,
+              mime_type: msg.document.mime_type,
+              file_size: msg.document.file_size,
+              sha256: msg.document.sha256,
+              filename: msg.document.filename,
+              link: msg.document.link ?? "",
+            }
+          : undefined,
+
+        context: msg.context
+          ? {
+              quoted_id: msg.context.quoted_id,
+              quoted_author: msg.context.quoted_author,
+              quoted_type: msg.context.quoted_type,
+            }
+          : undefined,
+      });
+    } catch (err) {
+      console.error("ERRO [getMessagesLastMessageByChatId]", err);
+      throw new DomainError("Failed to fetch last message");
+    }
+  }
 }

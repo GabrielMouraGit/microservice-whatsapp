@@ -7,6 +7,7 @@ import { SessionBootstrap } from "@/interfaces/plugins/SessionBootstrap";
 import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRepositoryPrisma";
 import { registerEventHandlers } from "@/infrastructure/events/RegisterEvents";
 import { MessageRoutes } from "@/interfaces/routes/MessageRoutes";
+import { ContactRoutes } from "@/interfaces/routes/ContactRoutes";
 
 const fastify = Fastify({ logger: true });
 
@@ -18,6 +19,7 @@ await fastify.register(HandlerRequest);
 
 fastify.register(SessionRoutes, { prefix: "/" });
 fastify.register(MessageRoutes, { prefix: "/" });
+fastify.register(ContactRoutes, { prefix: "/" });
 
 fastify.get("/status", async () => {
   return { status: true };

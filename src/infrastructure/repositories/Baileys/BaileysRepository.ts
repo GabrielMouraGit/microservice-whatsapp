@@ -2,12 +2,14 @@ import { SessionManager } from "../SessionManager";
 import { BaileysConnector } from "./BaileysConnector";
 import { WASocket } from "@whiskeysockets/baileys";
 import { MessageEventLogRepository } from "../MessageEventLogRepository";
+import { MessageRepository } from "../MessageRepository";
 
 export class BaileysRepository {
   constructor(
     private connector: BaileysConnector,
     private sessions: SessionManager,
     private messageEventLogRepository: MessageEventLogRepository,
+    private messageRepository: MessageRepository,
   ) {}
 
   async createSession(sessionId: string, tenantId: string) {
@@ -194,5 +196,40 @@ export class BaileysRepository {
     };
 
     return this.sendMessageCore(sock, jid, content, quoted_id);
+  }
+  async getContact(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    const result = await sock.onWhatsApp(jid);
+
+    const contact = result?.[0];
+
+    if (!contact?.exists) {
+      return {
+        jid: "",
+        name: "",
+        exists: false,
+        profilePicUrl: "",
+      };
+    }
+
+    let profilePicUrl: string;
+
+    try {
+      profilePicUrl = (await sock.profilePictureUrl(jid, "image")) || "";
+    } catch {
+      profilePicUrl = "";
+    }
+    const messageContact =
+      await this.messageRepository.getMessagesLastMessageByChatId(jid);
+    console.log(messageContact);
+
+    return {
+      jid,
+      name: messageContact?.from_name || "",
+      exists: contact.exists,
+      profilePicUrl,
+    };
   }
 }
