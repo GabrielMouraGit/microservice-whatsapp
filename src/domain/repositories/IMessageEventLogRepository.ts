@@ -4,6 +4,7 @@ export type MessageEventLogInput = {
   tenantId: string;
   eventName: string;
   payload: unknown;
+  message_id: string;
 };
 export interface IMessageEventLogRepository {
   save(data: MessageEventLogInput): Promise<MessageEventLogOutput>;
@@ -15,6 +16,7 @@ export interface IMessageEventLogRepository {
   findPending(limit?: number): Promise<MessageEventLogOutput[]>;
 
   findById(id: string): Promise<MessageEventLogOutput | null>;
+  findByMessageId(id: string): Promise<MessageEventLogOutput | null>;
 }
 
 export type MessageEventLogOutput = {

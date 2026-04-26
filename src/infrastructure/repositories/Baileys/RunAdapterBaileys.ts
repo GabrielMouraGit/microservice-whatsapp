@@ -20,8 +20,20 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     };
   }
 
-  async sendText(sessionId: string, number: string, text: string) {
-    this.repository.sendTextMessage(sessionId, number, text);
+  async sendText(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+    text: string,
+    quoted_id: string,
+  ) {
+    this.repository.sendTextMessage(
+      tenant_id,
+      sessionId,
+      number,
+      text,
+      quoted_id,
+    );
   }
   async logout(sessionId: string) {
     this.repository.logout(sessionId);

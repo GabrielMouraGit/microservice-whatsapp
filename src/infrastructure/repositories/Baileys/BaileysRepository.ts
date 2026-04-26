@@ -1,11 +1,13 @@
 import { SessionManager } from "../SessionManager";
 import { BaileysConnector } from "./BaileysConnector";
 import { WASocket } from "@whiskeysockets/baileys";
+import { MessageEventLogRepository } from "../MessageEventLogRepository";
 
 export class BaileysRepository {
   constructor(
     private connector: BaileysConnector,
     private sessions: SessionManager,
+    private messageEventLogRepository: MessageEventLogRepository,
   ) {}
 
   async createSession(sessionId: string, tenantId: string) {
@@ -62,11 +64,28 @@ export class BaileysRepository {
     });
   }
 
-  async sendTextMessage(sessionId: string, number: string, text: string) {
+  async sendTextMessage(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+    text: string,
+    quoted_id: string,
+  ) {
     const sock = await this.getReadySocket(sessionId);
-
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+    await sock.sendPresenceUpdate("composing", jid);
 
-    return sock.sendMessage(jid, { text });
+    const message =
+      await this.messageEventLogRepository.findByMessageId(quoted_id);
+
+    const quoted = message?.payload?.messages?.[0] || null;
+
+    await new Promise((r) => setTimeout(r, 2000)); // deley
+    await sock.sendPresenceUpdate("paused", jid);
+    return sock.sendMessage(
+      jid,
+      { text },
+      { ...(quoted ? { quoted: quoted } : {}) },
+    );
   }
 }

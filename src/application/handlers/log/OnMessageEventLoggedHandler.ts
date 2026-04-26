@@ -17,6 +17,7 @@ export class OnMessageEventLoggedHandler {
       tenantId: event.tenantId,
       eventName: event.eventName,
       payload: event.payload,
+      message_id: event.payload?.messages?.[0]?.key?.id || "",
     });
   }
 }

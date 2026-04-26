@@ -6,6 +6,7 @@ import { SessionRoutes } from "@/interfaces/routes/SessionRoutes";
 import { SessionBootstrap } from "@/interfaces/plugins/SessionBootstrap";
 import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRepositoryPrisma";
 import { registerEventHandlers } from "@/infrastructure/events/RegisterEvents";
+import { MessageRoutes } from "@/interfaces/routes/MessageRoutes";
 
 const fastify = Fastify({ logger: true });
 
@@ -16,6 +17,8 @@ fastify.register(cors, {
 await fastify.register(HandlerRequest);
 
 fastify.register(SessionRoutes, { prefix: "/" });
+fastify.register(MessageRoutes, { prefix: "/" });
+
 fastify.get("/status", async () => {
   return { status: true };
 });

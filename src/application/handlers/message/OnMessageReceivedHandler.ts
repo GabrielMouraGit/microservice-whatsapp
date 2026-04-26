@@ -16,7 +16,7 @@ export class OnMessageReceivedHandler {
       for (const msg of event.data.messages) {
         try {
           const message = WhatsappMessageMapper.toDomain(msg);
-          console.log(message.toDTO());
+
           await this.messageRepo.saveMessage(
             message,
             event.tenantId,

@@ -4,6 +4,7 @@ import {
   MessageEventLogOutput,
 } from "@/domain/repositories/IMessageEventLogRepository";
 import { $prismaClient } from "@config/database";
+import { MessageEventLog } from "@prisma/client";
 
 export class MessageEventLogRepository implements IMessageEventLogRepository {
   constructor() {}
@@ -13,6 +14,7 @@ export class MessageEventLogRepository implements IMessageEventLogRepository {
       data: {
         id: data.id,
         session_id: data.sessionId,
+        message_id: data.message_id,
         tenant_id: data.tenantId,
         event_name: data.eventName,
         payload: this.safeJson(data.payload),
@@ -65,8 +67,17 @@ export class MessageEventLogRepository implements IMessageEventLogRepository {
 
     return this.mapToOutput(result);
   }
+  async findByMessageId(id: string): Promise<MessageEventLogOutput | null> {
+    const result = await $prismaClient.messageEventLog.findFirst({
+      where: { message_id: id },
+    });
 
-  private mapToOutput(result: any): MessageEventLogOutput {
+    if (!result) return null;
+
+    return this.mapToOutput(result);
+  }
+
+  private mapToOutput(result: MessageEventLog): MessageEventLogOutput {
     return {
       id: result.id,
       sessionId: result.session_id,
