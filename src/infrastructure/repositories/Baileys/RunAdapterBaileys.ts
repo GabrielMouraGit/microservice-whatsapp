@@ -78,7 +78,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     url: string,
     quoted_id: string,
   ) {
-    this.repository.sendVideoMessage(sessionId, number, url, quoted_id);
+    this.repository.sendVoiceMessage(sessionId, number, url, quoted_id);
   }
   async sendDocument(
     sessionId: string,
