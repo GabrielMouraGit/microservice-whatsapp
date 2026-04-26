@@ -9,25 +9,122 @@ export class MessageController implements IMessage {
     private runAdapter: RunAdapterBaileys,
   ) {}
 
-  async sendText(data: {
+  private async validateSession(tenant_id: string, sessionId: string) {
+    const session = await this.sessionRepository.findById(sessionId);
+
+    if (!session || session.tenant_id !== tenant_id) {
+      throw new DomainError("Session não encontrada");
+    }
+  }
+
+  async sendText(params: {
     tenant_id: string;
     sessionId: string;
     number: string;
     text: string;
     quoted_id: string;
   }): Promise<void> {
-    const session = await this.sessionRepository.findById(data.sessionId);
-
-    if (!session || session.tenant_id != data.tenant_id) {
-      throw new DomainError("Session não encontrada");
-    }
+    await this.validateSession(params.tenant_id, params.sessionId);
 
     await this.runAdapter.sendText(
-      data.tenant_id,
-      data.sessionId,
-      data.number,
-      data.text,
-      data.quoted_id,
+      params.tenant_id,
+      params.sessionId,
+      params.number,
+      params.text,
+      params.quoted_id,
+    );
+  }
+
+  async sendImage(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    url: string;
+    caption: string;
+    quoted_id: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.sendImage(
+      params.sessionId,
+      params.number,
+      params.url,
+      params.caption,
+      params.quoted_id,
+    );
+  }
+
+  async sendVideo(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    url: string;
+    caption: string;
+    quoted_id: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.sendVideo(
+      params.sessionId,
+      params.number,
+      params.url,
+      params.caption,
+      params.quoted_id,
+    );
+  }
+
+  async sendAudio(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    url: string;
+    quoted_id?: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.sendAudio(
+      params.sessionId,
+      params.number,
+      params.url,
+      params.quoted_id,
+    );
+  }
+
+  async sendVoice(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    url: string;
+    quoted_id: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.sendVoice(
+      params.sessionId,
+      params.number,
+      params.url,
+      params.quoted_id,
+    );
+  }
+
+  async sendDocument(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    url: string;
+    fileName: string;
+    mimetype: string;
+    quoted_id: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.sendDocument(
+      params.sessionId,
+      params.number,
+      params.url,
+      params.fileName,
+      params.mimetype,
+      params.quoted_id,
     );
   }
 }

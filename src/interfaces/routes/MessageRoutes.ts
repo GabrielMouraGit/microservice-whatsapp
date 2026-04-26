@@ -22,8 +22,18 @@ const controller = new MessageController(repositorySession, runAdapter);
 const adapters = new MessageAdapters(controller);
 
 export async function MessageRoutes(net: FastifyInstance) {
+  net.post("/api/v1/message/send-text", adapters.httpSendText.bind(adapters));
+
+  net.post("/api/v1/message/send-image", adapters.httpSendImage.bind(adapters));
+
+  net.post("/api/v1/message/send-video", adapters.httpSendVideo.bind(adapters));
+
+  net.post("/api/v1/message/send-audio", adapters.httpSendAudio.bind(adapters));
+
+  net.post("/api/v1/message/send-voice", adapters.httpSendVoice.bind(adapters));
+
   net.post(
-    "/api/v1/message/send-message",
-    adapters.httpSendMessage.bind(adapters),
+    "/api/v1/message/send-document",
+    adapters.httpSendDocument.bind(adapters),
   );
 }

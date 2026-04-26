@@ -11,6 +11,41 @@ export interface IWhatsappAdapter {
     text: string,
     quoted_id: string,
   ): Promise<void>;
+  sendImage(
+    sessionId: string,
+    number: string,
+    url: string,
+    caption: string,
+    quoted_id: string,
+  ): Promise<void>;
+  sendVideo(
+    sessionId: string,
+    number: string,
+    url: string,
+    caption: string,
+    quoted_id: string,
+  ): Promise<void>;
+  sendAudio(
+    sessionId: string,
+    number: string,
+    url: string,
+    quoted_id?: string,
+  ): Promise<void>;
+
+  sendVoice(
+    sessionId: string,
+    number: string,
+    url: string,
+    quoted_id: string,
+  ): Promise<void>;
+  sendDocument(
+    sessionId: string,
+    number: string,
+    url: string,
+    fileName: string,
+    mimetype: string,
+    quoted_id: string,
+  ): Promise<void>;
 }
 
 export interface WhatsAppMessageText {

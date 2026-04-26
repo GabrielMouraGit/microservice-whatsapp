@@ -64,28 +64,135 @@ export class BaileysRepository {
     });
   }
 
+  private async buildQuotedMessage(quoted_id?: string) {
+    if (!quoted_id) return {};
+
+    const message =
+      await this.messageEventLogRepository.findByMessageId(quoted_id);
+
+    const quoted = message?.payload?.messages?.[0];
+
+    if (!quoted) return {};
+
+    return { quoted };
+  }
+  private async simulateTyping(sock: WASocket, jid: string, delay = 2000) {
+    await sock.sendPresenceUpdate("composing", jid);
+
+    await new Promise((r) => setTimeout(r, delay));
+
+    await sock.sendPresenceUpdate("paused", jid);
+  }
+
+  private async sendMessageCore(
+    sock: WASocket,
+    jid: string,
+    content: any,
+    quoted_id?: string,
+  ) {
+    const quotedOptions = await this.buildQuotedMessage(quoted_id);
+
+    await this.simulateTyping(sock, jid, 2000);
+
+    return sock.sendMessage(jid, content, quotedOptions);
+  }
+
   async sendTextMessage(
     tenant_id: string,
     sessionId: string,
     number: string,
     text: string,
-    quoted_id: string,
+    quoted_id?: string,
   ) {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
-    await sock.sendPresenceUpdate("composing", jid);
 
-    const message =
-      await this.messageEventLogRepository.findByMessageId(quoted_id);
+    return this.sendMessageCore(sock, jid, { text }, quoted_id);
+  }
+  async sendImageMessage(
+    sessionId: string,
+    number: string,
+    url: string,
+    caption?: string,
+    quoted_id?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
 
-    const quoted = message?.payload?.messages?.[0] || null;
+    const content = {
+      image: { url },
+      caption,
+    };
 
-    await new Promise((r) => setTimeout(r, 2000)); // deley
-    await sock.sendPresenceUpdate("paused", jid);
-    return sock.sendMessage(
-      jid,
-      { text },
-      { ...(quoted ? { quoted: quoted } : {}) },
-    );
+    return this.sendMessageCore(sock, jid, content, quoted_id);
+  }
+  async sendVideoMessage(
+    sessionId: string,
+    number: string,
+    url: string,
+    caption?: string,
+    quoted_id?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    const content = {
+      video: { url },
+      caption,
+    };
+
+    return this.sendMessageCore(sock, jid, content, quoted_id);
+  }
+  async sendAudioMessage(
+    sessionId: string,
+    number: string,
+    url: string,
+    quoted_id?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    const content = {
+      audio: { url },
+      mimetype: "audio/mp4",
+    };
+
+    return this.sendMessageCore(sock, jid, content, quoted_id);
+  }
+  async sendVoiceMessage(
+    sessionId: string,
+    number: string,
+    url: string,
+    quoted_id?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    const content = {
+      audio: { url },
+      mimetype: "audio/mp4",
+      ptt: true,
+    };
+
+    return this.sendMessageCore(sock, jid, content, quoted_id);
+  }
+  async sendDocumentMessage(
+    sessionId: string,
+    number: string,
+    url: string,
+    fileName: string,
+    mimetype: string,
+    quoted_id?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    const content = {
+      document: { url },
+      fileName,
+      mimetype,
+    };
+
+    return this.sendMessageCore(sock, jid, content, quoted_id);
   }
 }
