@@ -70,4 +70,20 @@ export class SessionAdapters {
 
     return await this.controller.findAll(tenant_id);
   }
+  async httpGetMyProfile(request: FastifyRequest) {
+    const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
+    const { session_id } = request.body as {
+      session_id: string;
+    };
+
+    return await this.controller.getMyProfile(tenant_id, session_id);
+  }
+  async httpIsConnected(request: FastifyRequest) {
+    const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
+    const { session_id } = request.body as {
+      session_id: string;
+    };
+
+    return await this.controller.isConnected(tenant_id, session_id);
+  }
 }

@@ -5,12 +5,18 @@ import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRe
 import { RunAdapterBaileys } from "@/infrastructure/repositories/Baileys/RunAdapterBaileys";
 import { baileysConnector, sessionManager } from "container";
 import { BaileysRepository } from "@/infrastructure/repositories/Baileys/BaileysRepository";
+import { MessageRepository } from "@/infrastructure/repositories/MessageRepository";
+import { MessageEventLogRepository } from "@/infrastructure/repositories/MessageEventLogRepository";
 
 const repositorySession = new SessionRepositoryPrisma();
+const messageEventLogRepository = new MessageEventLogRepository();
+const messageRepository = new MessageRepository();
 
 const baileysRepository = new BaileysRepository(
   baileysConnector,
   sessionManager,
+  messageEventLogRepository,
+  messageRepository,
 );
 
 const runAdapter = new RunAdapterBaileys(baileysRepository);
@@ -23,7 +29,15 @@ export async function SessionRoutes(net: FastifyInstance) {
   net.post("/api/v1/session/update", adapters.httpUpdate.bind(adapters));
   net.post("/api/v1/session/get-by-id", adapters.httpFindById.bind(adapters));
   net.post("/api/v1/session/logout", adapters.httpLogout.bind(adapters));
+  net.post(
+    "/api/v1/session/is-connected",
+    adapters.httpIsConnected.bind(adapters),
+  );
   net.post("/api/v1/session/delete", adapters.httpDeleteSession.bind(adapters));
+  net.post(
+    "/api/v1/session/get-my-profile",
+    adapters.httpGetMyProfile.bind(adapters),
+  );
   net.post(
     "/api/v1/session/new-qr-code",
     adapters.httpNewQRCode.bind(adapters),

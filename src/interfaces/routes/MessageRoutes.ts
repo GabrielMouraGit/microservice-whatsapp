@@ -6,14 +6,17 @@ import { BaileysRepository } from "@/infrastructure/repositories/Baileys/Baileys
 import { MessageAdapters } from "../adapters/MessageAdapters";
 import { MessageController } from "../controllers/MessageController";
 import { MessageEventLogRepository } from "@/infrastructure/repositories/MessageEventLogRepository";
+import { MessageRepository } from "@/infrastructure/repositories/MessageRepository";
 
 const repositorySession = new SessionRepositoryPrisma();
 const messageEventLogRepository = new MessageEventLogRepository();
+const messageRepository = new MessageRepository();
 
 const baileysRepository = new BaileysRepository(
   baileysConnector,
   sessionManager,
   messageEventLogRepository,
+  messageRepository,
 );
 
 const runAdapter = new RunAdapterBaileys(baileysRepository);

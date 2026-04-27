@@ -94,4 +94,22 @@ export class SessionController implements ISession {
 
     return await sessions.map((s) => s.toDTO());
   }
+
+  async getMyProfile(tenant_id: string, session_id: string) {
+    const session = await this.sessionRepository.findById(session_id);
+
+    if (!session || session.tenant_id != tenant_id) {
+      throw new DomainError("Session não encontrada");
+    }
+    return await this.runAdapter.getMyProfile(session.id);
+  }
+
+  async isConnected(tenant_id: string, session_id: string) {
+    const session = await this.sessionRepository.findById(session_id);
+
+    if (!session || session.tenant_id != tenant_id) {
+      throw new DomainError("Session não encontrada");
+    }
+    return await this.runAdapter.isConnected(session.id);
+  }
 }

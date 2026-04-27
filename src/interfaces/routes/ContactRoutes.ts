@@ -11,6 +11,7 @@ import { MessageRepository } from "@/infrastructure/repositories/MessageReposito
 const repositorySession = new SessionRepositoryPrisma();
 const messageEventLogRepository = new MessageEventLogRepository();
 const messageRepository = new MessageRepository();
+
 const baileysRepository = new BaileysRepository(
   baileysConnector,
   sessionManager,
@@ -27,5 +28,9 @@ export async function ContactRoutes(net: FastifyInstance) {
   net.post(
     "/api/v1/contact/get-contact-by-id",
     adapters.httpGetContact.bind(adapters),
+  );
+  net.post(
+    "/api/v1/contact/check-exists",
+    adapters.httpCheckExists.bind(adapters),
   );
 }

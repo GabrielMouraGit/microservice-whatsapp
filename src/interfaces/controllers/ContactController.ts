@@ -31,4 +31,15 @@ export class ContactController implements IContact {
 
     return await this.runAdapter.getContact(sessionId, number);
   }
+  async checkExists(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+  ): Promise<{
+    exists: boolean;
+  }> {
+    await this.validateSession(tenant_id, sessionId);
+
+    return await this.runAdapter.checkExists(sessionId, number);
+  }
 }

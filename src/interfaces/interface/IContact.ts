@@ -9,4 +9,9 @@ export interface IContact {
     exists: boolean;
     profilePicUrl: string;
   }>;
+  checkExists(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+  ): Promise<{ exists: boolean }>;
 }

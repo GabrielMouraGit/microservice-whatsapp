@@ -17,4 +17,17 @@ export interface ISession {
   deleteSession(session_id: string, tenant_id: string): Promise<void>;
   logout(session_id: string, tenant_id: string): Promise<void>;
   findAll(tenant_id: string): Promise<SessionDTO[]>;
+  getMyProfile(
+    tenant_id: string,
+    session_id: string,
+  ): Promise<{
+    jid: string;
+    name: string;
+    phone: string;
+    profilePicUrl: string;
+  }>;
+  isConnected(
+    tenant_id: string,
+    session_id: string,
+  ): Promise<{ connected: boolean }>;
 }

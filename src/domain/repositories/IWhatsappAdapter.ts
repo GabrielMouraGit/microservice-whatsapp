@@ -55,6 +55,16 @@ export interface IWhatsappAdapter {
     exists: boolean;
     profilePicUrl: string;
   }>;
+  checkExists(sessionId: string, number: string): Promise<{ exists: boolean }>;
+  isConnected(sessionId: string): Promise<{ connected: boolean }>;
+  getMyProfile(
+    sessionId: string,
+  ): Promise<{
+    jid: string;
+    name: string;
+    phone: string;
+    profilePicUrl: string;
+  }>;
 }
 
 export interface WhatsAppMessageText {

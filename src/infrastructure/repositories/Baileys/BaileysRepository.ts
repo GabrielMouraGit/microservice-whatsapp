@@ -232,4 +232,52 @@ export class BaileysRepository {
       profilePicUrl,
     };
   }
+  async checkExists(
+    sessionId: string,
+    number: string,
+  ): Promise<{ exists: boolean }> {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    const result = await sock.onWhatsApp(jid);
+
+    return { exists: result?.[0]?.exists ?? false };
+  }
+  async getContacts() {
+    return [];
+  }
+  async isConnected(sessionId: string) {
+    const sock = this.sessions.get(sessionId);
+
+    return { connected: !!sock?.user };
+  }
+  async getMyProfile(sessionId: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    if (!sock.user) {
+      return {
+        jid: "",
+        name: "",
+        phone: "",
+        profilePicUrl: "",
+      };
+    }
+
+    const jid = sock?.user?.id || "";
+
+    let profilePicUrl = "";
+
+    try {
+      profilePicUrl = (await sock.profilePictureUrl(jid, "image")) || "";
+    } catch {
+      profilePicUrl = "";
+    }
+
+    return {
+      jid,
+      name: sock.user.name || "",
+      phone: jid.split("@")[0],
+      profilePicUrl,
+    };
+  }
 }
