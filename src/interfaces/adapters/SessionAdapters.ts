@@ -6,13 +6,15 @@ export class SessionAdapters {
 
   async httpCreate(request: FastifyRequest) {
     const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
-    const { name, descricao } = request.body as {
+    const { name, descricao, session_id } = request.body as {
       name: string;
+      session_id: string;
       descricao: string;
     };
 
     return await this.controller.create({
       descricao,
+      session_id,
       name,
       tenant_id,
     });

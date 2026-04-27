@@ -4,6 +4,7 @@ export interface ISession {
   create(data: {
     name: string;
     descricao: string;
+    session_id: string;
     tenant_id: string;
   }): Promise<{ session_id: string }>;
   update(data: {

@@ -1,7 +1,6 @@
 import { ISessionRepository } from "@/domain/repositories/ISessionRepository";
 import { ISession } from "../interface/ISession";
 import { Session, SessionDTO } from "@/domain/entities/Session";
-import { v4 as uuidv4 } from "uuid";
 import { DomainError } from "@/domain/utils/DomainError";
 import { RunAdapterBaileys } from "@/infrastructure/repositories/Baileys/RunAdapterBaileys";
 
@@ -13,11 +12,12 @@ export class SessionController implements ISession {
 
   async create(data: {
     name: string;
+    session_id: string;
     descricao: string;
     tenant_id: string;
   }): Promise<{ session_id: string }> {
     const session = Session.create({
-      id: uuidv4(),
+      id: data.session_id,
       name: data.name,
       tenant_id: data.tenant_id,
       descricao: "",
