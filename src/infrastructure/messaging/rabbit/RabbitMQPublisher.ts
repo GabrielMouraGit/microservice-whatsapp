@@ -2,7 +2,7 @@
 import { RabbitMQConnection } from "./RabbitMQConnection";
 
 export class RabbitMQPublisher {
-  async publish(queue: string, message: unknown) {
+  async publishQueue(queue: string, message: unknown) {
     const conn = await RabbitMQConnection.getInstance();
     const channel = conn.getChannel();
 
@@ -11,6 +11,28 @@ export class RabbitMQPublisher {
     channel.sendToQueue(queue, Buffer.from(JSON.stringify(message)), {
       persistent: true, // (mensagem sobrevive restart)
     });
+  }
+  async publishExchange(
+    exchange: string,
+    routingKey: string,
+    message: unknown,
+  ) {
+    const conn = await RabbitMQConnection.getInstance();
+    const channel = conn.getChannel();
+
+    // 🔥 garante exchange existe
+    await channel.assertExchange(exchange, "topic", {
+      durable: true,
+    });
+
+    channel.publish(
+      exchange,
+      routingKey,
+      Buffer.from(JSON.stringify(message)),
+      {
+        persistent: true,
+      },
+    );
   }
 }
 

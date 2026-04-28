@@ -1,4 +1,5 @@
 import { registerSessionHandlers } from "@/infrastructure/events/implementation/session.handlers";
+import { RabbitMQBootstrap } from "@/infrastructure/messaging/rabbit/RabbitMQBootstrap";
 import { RabbitMQConnection } from "@/infrastructure/messaging/rabbit/RabbitMQConnection";
 import { eventBus } from "container";
 
@@ -10,29 +11,13 @@ async function start() {
     const conn = await RabbitMQConnection.getInstance();
     const channel = conn.getChannel();
 
-    // exchange
-    await channel.assertExchange("messages.exchange", "topic", {
-      durable: true,
-    });
+    await RabbitMQBootstrap.setup(channel);
 
-    // queue
-    await channel.assertQueue("messages.queue", {
-      durable: true,
-    });
-
-    //bind routing key
-    await channel.bindQueue(
-      "messages.queue",
-      "messages.exchange",
-      "messages.upsert",
-    );
-
-    // 🔥 controle de concorrência
     channel.prefetch(10);
 
     console.log("🟢 Worker messages.upsert rodando...");
 
-    // 📥 consumer
+    // consumer
     channel.consume("messages.queue", async (msg) => {
       if (!msg) return;
 
@@ -50,7 +35,7 @@ async function start() {
       } catch (err) {
         console.error("❌ erro no worker messages.upsert:", err);
 
-        // ❗ se quiser retry depois, troca isso
+        //se quiser retry depois, troca isso
         channel.nack(msg, false, false);
       }
     });

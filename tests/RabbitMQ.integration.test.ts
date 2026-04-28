@@ -13,7 +13,7 @@ describe("RabbitMQ integration", () => {
       received.push(data);
     });
 
-    await publisher.publish("messages.upsert", {
+    await publisher.publishQueue("messages.upsert", {
       hello: "world",
     });
 
