@@ -260,11 +260,13 @@ export class BaileysConnector {
   }
 
   async regenerateQr(sessionId: string, tenantId: string) {
-    //  logout
-    await this.logout(sessionId);
+    const existing = this.sockets.get(sessionId);
 
-    // 2. reconecta
-    const { qr } = await this.connect(sessionId, tenantId);
+    if (!existing) {
+      return await this.connect(sessionId, tenantId);
+    }
+
+    const qr = await this.waitQr(sessionId);
 
     return { qr };
   }
