@@ -8,6 +8,7 @@ import { ITypeMessageLogEvents } from "@/domain/events/ITypeMessageLogEvents";
 import { DomainEventDispatcher } from "@/infrastructure/events/DomainEventDispatcher";
 
 export const eventBus = new EventBus<AppEvents>();
+
 export type AppEvents = ITypeSessionEvents & ITypeMessageLogEvents;
 
 export const sessionManager = new SessionManager();

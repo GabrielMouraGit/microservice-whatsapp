@@ -20,7 +20,7 @@ export class RabbitMQPublisher {
     const conn = await RabbitMQConnection.getInstance();
     const channel = conn.getChannel();
 
-    // 🔥 garante exchange existe
+    // garante exchange existe
     await channel.assertExchange(exchange, "topic", {
       durable: true,
     });

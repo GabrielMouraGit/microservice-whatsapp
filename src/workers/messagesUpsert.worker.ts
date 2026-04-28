@@ -3,6 +3,8 @@ import { RabbitMQBootstrap } from "@/infrastructure/messaging/rabbit/RabbitMQBoo
 import { RabbitMQConnection } from "@/infrastructure/messaging/rabbit/RabbitMQConnection";
 import { eventBus } from "container";
 
+const MAX_RETRIES = 3;
+
 async function start() {
   try {
     // registra handlers do domínio
@@ -15,27 +17,40 @@ async function start() {
 
     channel.prefetch(10);
 
-    console.log("🟢 Worker messages.upsert rodando...");
+    console.log("🟢 Worker messages.queue rodando...");
 
-    // consumer
     channel.consume("messages.queue", async (msg) => {
       if (!msg) return;
 
+      const content = JSON.parse(msg.content.toString());
+
+      const headers = msg.properties.headers || {};
+      const retryCount = headers["x-retry-count"] || 0;
+
       try {
-        const content = JSON.parse(msg.content.toString());
-
-        /**
-         * aqui você desacopla tudo:
-         * RabbitMQ → EventBus → Handlers
-         */
-
-        eventBus.emit("message.received", content);
+        // send event
+        await eventBus.emit("message.received", content);
 
         channel.ack(msg);
       } catch (err) {
-        console.error("❌ erro no worker messages.upsert:", err);
+        console.error("❌ erro no worker:", err);
 
-        //se quiser retry depois, troca isso
+        // ainda pode tentar novamente
+        if (retryCount < MAX_RETRIES) {
+          const retryQueue = "messages.queue.retry";
+
+          channel.sendToQueue(retryQueue, msg.content, {
+            headers: {
+              ...headers,
+              "x-retry-count": retryCount + 1,
+            },
+          });
+
+          channel.ack(msg);
+          return;
+        }
+
+        // estourou retry → manda pra DLQ
         channel.nack(msg, false, false);
       }
     });
