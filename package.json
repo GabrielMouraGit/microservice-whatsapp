@@ -6,7 +6,6 @@
   "scripts": {
     "lint": "eslint 'src/**/*.{ts,tsx}' --fix",
     "format": "prettier --write 'src/**/*.{ts,tsx,json,md}'",
-    "test": "npx vitest",
     "dev": "tsx watch --env-file=.env --clear-screen=false server.ts",
     "build": "tsup --config tsup.api.ts",
     "start": "node dist/api/server.js",
@@ -14,7 +13,10 @@
     "prisma:migrate": "prisma migrate dev --schema=src/infrastructure/database/prisma/schema.prisma",
     "prisma:deploy": "prisma migrate deploy --schema=src/infrastructure/database/prisma/schema.prisma",
     "prisma:reset": "prisma migrate reset --schema=src/infrastructure/database/prisma/schema.prisma",
-    "prisma:studio": "prisma studio --schema=src/infrastructure/database/prisma/schema.prisma"
+    "prisma:studio": "prisma studio --schema=src/infrastructure/database/prisma/schema.prisma",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
   },
   "repository": {
     "type": "git",
@@ -30,6 +32,7 @@
   "description": "",
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/amqplib": "^0.10.8",
     "@types/jest": "^30.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^25.0.1",
@@ -40,6 +43,7 @@
     "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^8.49.0",
     "@typescript-eslint/parser": "^8.49.0",
+    "@vitest/ui": "^4.1.5",
     "esbuild": "^0.27.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
@@ -60,7 +64,8 @@
     "tsx": "^4.21.0",
     "ttypescript": "^1.5.15",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.49.0"
+    "typescript-eslint": "^8.49.0",
+    "vitest": "^4.1.5"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
@@ -82,6 +87,7 @@
     "@prisma/instrumentation": "^6.18.0",
     "@vite-pwa/nuxt": "^1.1.1",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "amqplib": "^1.0.3",
     "bullmq": "^5.66.5",
     "cep-promise": "^4.4.1",
     "date-fns": "^4.1.0",
@@ -104,7 +110,6 @@
     "soap": "^1.6.1",
     "undici": "^7.16.0",
     "uuid": "^13.0.0",
-    "vitest": "^4.1.5",
     "xml2js": "^0.6.2",
     "zod": "^4.3.6"
   }
