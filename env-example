@@ -7,3 +7,4 @@ DATABASE_URL=postgresql://node:randompassword@db:5432/mydb?schema=public
 POSTGRES_USER=node
 POSTGRES_PASSWORD=randompassword
 POSTGRES_DB=mydb
+RABBITMQ_URL="amqp://admin:admin@host.docker.internal:5672"

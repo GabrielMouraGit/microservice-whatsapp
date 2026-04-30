@@ -1,9 +1,13 @@
 import { WhatsappMessageMapper } from "@/application/usecase/WhatsappMessageMapper";
 import { IMessageRepository } from "@/domain/repositories/IMessageRepository";
 import { WebhookWhatsapp } from "@/domain/repositories/IWhatsappAdapter";
+import { RabbitMQPublisher } from "@/infrastructure/messaging/rabbit/RabbitMQPublisher";
 
 export class OnMessageReceivedHandler {
-  constructor(private messageRepo: IMessageRepository) {}
+  constructor(
+    private messageRepo: IMessageRepository,
+    private rabbitMQPublisher: RabbitMQPublisher,
+  ) {}
 
   async handle(event: {
     sessionId: string;
@@ -21,6 +25,16 @@ export class OnMessageReceivedHandler {
             message,
             event.tenantId,
             event.sessionId,
+          );
+
+          await this.rabbitMQPublisher.publishExchange(
+            "messages.exchange",
+            "messages.upsert",
+            {
+              message,
+              tenant_id: event.tenantId,
+              session_id: event.sessionId,
+            },
           );
         } catch (err) {
           console.error("❌ erro ao mapear mensagem:", msg.id, err);

@@ -4,6 +4,7 @@ import { OnSessionConnectedHandler } from "@/application/handlers/OnSessionConne
 import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRepositoryPrisma";
 import { OnMessageReceivedHandler } from "@/application/handlers/message/OnMessageReceivedHandler";
 import { MessageRepository } from "@/infrastructure/repositories/MessageRepository";
+import { RabbitMQPublisher } from "@/infrastructure/messaging/rabbit/RabbitMQPublisher";
 
 export function registerSessionHandlers() {
   const sessionRepository = new SessionRepositoryPrisma();
@@ -12,8 +13,10 @@ export function registerSessionHandlers() {
   const onSessionConnectedHandler = new OnSessionConnectedHandler(
     sessionRepository,
   );
+  const rabbitMQPublisher = new RabbitMQPublisher();
   const onMessageReceivedHandler = new OnMessageReceivedHandler(
     messageRepository,
+    rabbitMQPublisher,
   );
   eventBus.on("session.qr.generated", (e) => onQrGeneratedHandler.handle(e));
   eventBus.on("session.connected", (e) => onSessionConnectedHandler.handle(e));
