@@ -1,23 +1,23 @@
 export const RabbitMQRegistry: RabbitMQExchangeConfig[] = [
-  // {
-  //   exchange: "messages.exchange",
-  //   type: "topic",
-  //   queues: [
-  //     {
-  //       name: "messages.queue",
-  //       routingKeys: ["messages.upsert"],
-  //       retry: {
-  //         queue: "messages.queue.retry",
-  //         ttl: 5000, // 5 segundos
-  //       },
-  //       dlq: {
-  //         exchange: "messages.dlx",
-  //         queue: "messages.queue.dlq",
-  //         routingKey: "messages.upsert.dlq",
-  //       },
-  //     },
-  //   ],
-  // },
+  {
+    exchange: "messages.exchange",
+    type: "topic",
+    queues: [
+      {
+        name: "messages.queue",
+        routingKeys: ["messages.upsert"],
+        retry: {
+          queue: "messages.queue.retry",
+          ttl: 30000, // 30 segundos
+        },
+        dlq: {
+          exchange: "messages.dlx",
+          queue: "messages.queue.dlq",
+          routingKey: "messages.upsert.dlq",
+        },
+      },
+    ],
+  },
 ];
 
 export type RabbitMQRouting = {
@@ -30,7 +30,7 @@ export type RabbitMQRouting = {
   };
   retry?: {
     queue: string;
-    ttl: number; // tempo de espera antes de retry
+    ttl: number;
   };
 };
 

@@ -1,4 +1,5 @@
 // RabbitMQPublisher.ts
+import { RabbitMQBootstrap } from "./RabbitMQBootstrap";
 import { RabbitMQConnection } from "./RabbitMQConnection";
 
 export class RabbitMQPublisher {
@@ -19,6 +20,7 @@ export class RabbitMQPublisher {
   ) {
     const conn = await RabbitMQConnection.getInstance();
     const channel = conn.getChannel();
+    await RabbitMQBootstrap.setup(channel);
 
     // garante exchange existe
     await channel.assertExchange(exchange, "topic", {

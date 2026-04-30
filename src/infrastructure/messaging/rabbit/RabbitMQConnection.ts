@@ -1,3 +1,4 @@
+import { $config } from "@config/config";
 import amqp, { Connection, Channel } from "amqplib";
 
 export class RabbitMQConnection {
@@ -18,7 +19,7 @@ export class RabbitMQConnection {
   }
 
   private async connect() {
-    this.connection = await amqp.connect("amqp://admin:admin@localhost:5672"); // env
+    this.connection = await amqp.connect($config.RABBITMQ_URL);
 
     this.channel = await this.connection.createChannel();
   }

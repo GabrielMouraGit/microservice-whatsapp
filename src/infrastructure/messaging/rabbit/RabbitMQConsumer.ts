@@ -1,10 +1,13 @@
 // RabbitMQConsumer.ts
+import { RabbitMQBootstrap } from "./RabbitMQBootstrap";
 import { RabbitMQConnection } from "./RabbitMQConnection";
 
 export class RabbitMQConsumer {
   async consume(queue: string, handler: (data: unknown) => Promise<void>) {
     const conn = await RabbitMQConnection.getInstance();
     const channel = conn.getChannel();
+
+    await RabbitMQBootstrap.setup(channel);
 
     await channel.assertQueue(queue, { durable: true });
 
