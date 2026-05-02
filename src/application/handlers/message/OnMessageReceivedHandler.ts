@@ -31,7 +31,7 @@ export class OnMessageReceivedHandler {
             "messages.exchange",
             "messages.upsert",
             {
-              message,
+              message: message.toDTO(),
               tenant_id: event.tenantId,
               session_id: event.sessionId,
             },
