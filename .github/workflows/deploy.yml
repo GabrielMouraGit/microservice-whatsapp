@@ -1,0 +1,63 @@
+name: deploy microservice-whatsapp
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Conectar no servidor e preparar deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_TYTEC_HOST }}
+          username: ${{ secrets.SERVER_TYTEC_USER }}
+          password: ${{ secrets.SERVER_TYTEC_PASSWORD }}
+          port: ${{ secrets.SERVER_TYTEC_PORT }}
+          script: |
+            set -e
+            echo "✅ Conexão estabelecida com sucesso!"
+
+            BASE_DIR=~/microservice-whatsapp-deploys
+            DEPLOY_DIR=~/microservice-whatsapp-deploys
+            CURRENT_DIR="$DEPLOY_DIR/current"
+            OLD_DIR="$DEPLOY_DIR/old"
+
+            # Garantir que a pasta base exista
+            mkdir -p "$DEPLOY_DIR"
+
+            echo "📁 Verificando diretórios de deploy..."
+            if [ -d "$CURRENT_DIR" ]; then
+              echo "🌀 Versão atual encontrada, preparando backup antigo..."
+
+              # Remove BACKEND-old se já existir
+              if [ -d "$OLD_DIR" ]; then
+                echo "🗑️ Removendo versão anterior (BACKEND-old)..."
+                rm -rf "$OLD_DIR"
+              fi
+
+              # Renomeia a atual para old
+              echo "📦 Movendo BACKEND-current -> BACKEND-old"
+              mv "$CURRENT_DIR" "$OLD_DIR"
+            fi
+
+            # 🔧 Clonar o repositório no CURRENT_DIR
+            echo "📁 Clonando repositório para BACKEND-current..."
+            git clone https://GabrielMouraGit:${{ secrets.GIT_TOKEN }}@github.com/GabrielMouraGit/microservice-whatsapp.git "$CURRENT_DIR"
+
+            # Entrar no diretório clonado
+            cd "$CURRENT_DIR"
+
+            echo "📄 Copiando .env..."
+            cp ~/envs/microservice-whatsapp/.env "$CURRENT_DIR/.env"
+
+            echo "Removendo containers antigos à força..."
+            sudo docker compose -f docker-compose.prod.yml down
+
+            echo "🚀 Subindo containers..."
+            sudo docker compose -f docker-compose.prod.yml up -d --build 
+
+            echo "✅ Deploy concluído com sucesso!"
