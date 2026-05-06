@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { baileysConnector } from "container";
 import HandlerRequest from "@/interfaces/plugins/HandlerRequest";
+import HandlerAuth from "@/interfaces/plugins/HandlerAuth";
 import { SessionRoutes } from "@/interfaces/routes/SessionRoutes";
 import { SessionBootstrap } from "@/interfaces/plugins/SessionBootstrap";
 import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRepositoryPrisma";
@@ -16,12 +17,12 @@ fastify.register(cors, {
 });
 
 await fastify.register(HandlerRequest);
+await fastify.register(HandlerAuth);
 
 fastify.register(SessionRoutes, { prefix: "/" });
 fastify.register(MessageRoutes, { prefix: "/" });
 fastify.register(ContactRoutes, { prefix: "/" });
-
-fastify.get("/status", async () => {
+fastify.get("/api/v1/status", async () => {
   return { status: true };
 });
 

@@ -5,7 +5,7 @@ export class MessageAdapters {
   constructor(private controller: IMessage) {}
 
   async httpSendText(request: FastifyRequest) {
-    const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
+    const tenant_id = request.auth.tenant_id;
 
     const { session_id, number, text, quoted_id } = request.body as {
       session_id: string;
@@ -24,7 +24,7 @@ export class MessageAdapters {
   }
 
   async httpSendImage(request: FastifyRequest) {
-    const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
+    const tenant_id = request.auth.tenant_id;
 
     const { session_id, number, url, caption, quoted_id } = request.body as {
       session_id: string;
@@ -45,7 +45,7 @@ export class MessageAdapters {
   }
 
   async httpSendVideo(request: FastifyRequest) {
-    const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
+    const tenant_id = request.auth.tenant_id;
 
     const { session_id, number, url, caption, quoted_id } = request.body as {
       session_id: string;
@@ -66,7 +66,7 @@ export class MessageAdapters {
   }
 
   async httpSendAudio(request: FastifyRequest) {
-    const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
+    const tenant_id = request.auth.tenant_id;
 
     const { session_id, number, url, quoted_id } = request.body as {
       session_id: string;
@@ -85,7 +85,7 @@ export class MessageAdapters {
   }
 
   async httpSendVoice(request: FastifyRequest) {
-    const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
+    const tenant_id = request.auth.tenant_id;
 
     const { session_id, number, url, quoted_id } = request.body as {
       session_id: string;
@@ -104,7 +104,7 @@ export class MessageAdapters {
   }
 
   async httpSendDocument(request: FastifyRequest) {
-    const tenant_id = "9bdaeaa6-f4fd-4b22-8825-af0141d924cc";
+    const tenant_id = request.auth.tenant_id;
 
     const { session_id, number, url, fileName, mimetype, quoted_id } =
       request.body as {
