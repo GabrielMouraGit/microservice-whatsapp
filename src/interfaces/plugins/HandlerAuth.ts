@@ -17,13 +17,12 @@ export default fp(async function (fastify) {
   fastify.addHook(
     "preHandler",
     async (request: FastifyRequest, reply: FastifyReply) => {
-      if (request.url.startsWith("/public")) {
-        return;
-      }
+      const isPrivate = request.headers["x-auth-required"] === "true";
+      if (!isPrivate) return;
 
       const gatewaySecret = request.headers["x-gateway-secret"] as string;
 
-      if (gatewaySecret !== $config.GATEWAY_SECRET) {
+      if (gatewaySecret !== $config.GATEWAY_SECRET_AUTH) {
         return reply.status(401).send({
           message: "Unauthorized gateway",
         });
