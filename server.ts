@@ -10,6 +10,8 @@ import { registerEventHandlers } from "@/infrastructure/events/RegisterEvents";
 import { MessageRoutes } from "@/interfaces/routes/MessageRoutes";
 import { ContactRoutes } from "@/interfaces/routes/ContactRoutes";
 
+const PREFIX_SERVICE = "/whatsapp-service";
+
 const fastify = Fastify({ logger: true });
 
 fastify.register(cors, {
@@ -19,10 +21,10 @@ fastify.register(cors, {
 await fastify.register(HandlerRequest);
 await fastify.register(HandlerAuth);
 
-fastify.register(SessionRoutes, { prefix: "/" });
-fastify.register(MessageRoutes, { prefix: "/" });
-fastify.register(ContactRoutes, { prefix: "/" });
-fastify.get("/api/v1/status", async () => {
+fastify.register(SessionRoutes, { prefix: PREFIX_SERVICE });
+fastify.register(MessageRoutes, { prefix: PREFIX_SERVICE });
+fastify.register(ContactRoutes, { prefix: PREFIX_SERVICE });
+fastify.get(`${PREFIX_SERVICE}/public/api/v1/status`, async () => {
   return { status: true };
 });
 
