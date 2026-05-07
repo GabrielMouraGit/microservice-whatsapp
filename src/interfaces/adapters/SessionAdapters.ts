@@ -73,7 +73,7 @@ export class SessionAdapters {
 
     return await this.controller.deleteSession(session_id, tenant_id);
   }
-  async httpAllSession() {
+  async httpAllSession(request: FastifyRequest) {
     const tenant_id = request.auth.tenant_id;
 
     return await this.controller.findAll(tenant_id);
