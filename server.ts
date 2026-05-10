@@ -9,6 +9,7 @@ import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRe
 import { registerEventHandlers } from "@/infrastructure/events/RegisterEvents";
 import { MessageRoutes } from "@/interfaces/routes/MessageRoutes";
 import { ContactRoutes } from "@/interfaces/routes/ContactRoutes";
+import { TenantRoutes } from "@/interfaces/routes/TenantRoutes";
 
 const PREFIX_SERVICE = "/whatsapp-service";
 
@@ -24,6 +25,8 @@ await fastify.register(HandlerAuth);
 fastify.register(SessionRoutes, { prefix: PREFIX_SERVICE });
 fastify.register(MessageRoutes, { prefix: PREFIX_SERVICE });
 fastify.register(ContactRoutes, { prefix: PREFIX_SERVICE });
+fastify.register(TenantRoutes, { prefix: PREFIX_SERVICE });
+
 fastify.get(`${PREFIX_SERVICE}/public/api/v1/status`, async () => {
   return { status: true };
 });
