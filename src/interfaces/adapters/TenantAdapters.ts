@@ -6,10 +6,9 @@ export class TenantAdapters {
   constructor(private repo: ITenant) {}
 
   async httpRegisterTenant(request: FastifyRequest) {
-    const tenant_id = request.auth.tenant_id;
-
-    const { name } = request.body as {
+    const { name, tenant_id } = request.body as {
       name: string;
+      tenant_id: string;
     };
 
     return await this.repo.register(

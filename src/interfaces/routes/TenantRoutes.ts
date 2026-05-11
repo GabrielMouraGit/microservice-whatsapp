@@ -8,7 +8,7 @@ const adapters = new TenantAdapters(repository);
 
 export async function TenantRoutes(net: FastifyInstance) {
   net.post(
-    "/api/v1/tenant/register",
+    "/public/api/v1/tenant/register",
     adapters.httpRegisterTenant.bind(adapters),
   );
 }
