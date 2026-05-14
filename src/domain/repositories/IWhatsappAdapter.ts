@@ -10,34 +10,34 @@ export interface IWhatsappAdapter {
     number: string,
     text: string,
     quoted_id: string,
-  ): Promise<void>;
+  ): Promise<{ message_id: string }>;
   sendImage(
     sessionId: string,
     number: string,
     url: string,
     caption: string,
     quoted_id: string,
-  ): Promise<void>;
+  ): Promise<{ message_id: string }>;
   sendVideo(
     sessionId: string,
     number: string,
     url: string,
     caption: string,
     quoted_id: string,
-  ): Promise<void>;
+  ): Promise<{ message_id: string }>;
   sendAudio(
     sessionId: string,
     number: string,
     url: string,
     quoted_id?: string,
-  ): Promise<void>;
+  ): Promise<{ message_id: string }>;
 
   sendVoice(
     sessionId: string,
     number: string,
     url: string,
     quoted_id: string,
-  ): Promise<void>;
+  ): Promise<{ message_id: string }>;
   sendDocument(
     sessionId: string,
     number: string,
@@ -45,7 +45,7 @@ export interface IWhatsappAdapter {
     fileName: string,
     mimetype: string,
     quoted_id: string,
-  ): Promise<void>;
+  ): Promise<{ message_id: string }>;
   getContact(
     sessionId: string,
     number: string,
@@ -57,9 +57,7 @@ export interface IWhatsappAdapter {
   }>;
   checkExists(sessionId: string, number: string): Promise<{ exists: boolean }>;
   isConnected(sessionId: string): Promise<{ connected: boolean }>;
-  getMyProfile(
-    sessionId: string,
-  ): Promise<{
+  getMyProfile(sessionId: string): Promise<{
     jid: string;
     name: string;
     phone: string;

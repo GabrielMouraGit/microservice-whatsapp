@@ -26,7 +26,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     text: string,
     quoted_id: string,
   ) {
-    this.repository.sendTextMessage(
+    return this.repository.sendTextMessage(
       tenant_id,
       sessionId,
       number,
@@ -41,7 +41,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     caption: string,
     quoted_id: string,
   ) {
-    this.repository.sendImageMessage(
+    return this.repository.sendImageMessage(
       sessionId,
       number,
       url,
@@ -56,7 +56,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     caption: string,
     quoted_id: string,
   ) {
-    this.repository.sendVideoMessage(
+    return this.repository.sendVideoMessage(
       sessionId,
       number,
       url,
@@ -70,7 +70,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     url: string,
     quoted_id?: string,
   ) {
-    this.repository.sendAudioMessage(sessionId, number, url, quoted_id);
+    return this.repository.sendAudioMessage(sessionId, number, url, quoted_id);
   }
   async sendVoice(
     sessionId: string,
@@ -78,7 +78,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     url: string,
     quoted_id: string,
   ) {
-    this.repository.sendVoiceMessage(sessionId, number, url, quoted_id);
+    return this.repository.sendVoiceMessage(sessionId, number, url, quoted_id);
   }
   async sendDocument(
     sessionId: string,
@@ -88,7 +88,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     mimetype: string,
     quoted_id: string,
   ) {
-    this.repository.sendDocumentMessage(
+    return this.repository.sendDocumentMessage(
       sessionId,
       number,
       url,
@@ -98,7 +98,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     );
   }
   async logout(sessionId: string) {
-    this.repository.logout(sessionId);
+    return this.repository.logout(sessionId);
   }
   async getContact(sessionId: string, number: string) {
     return this.repository.getContact(sessionId, number);

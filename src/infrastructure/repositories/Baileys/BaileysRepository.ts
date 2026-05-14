@@ -109,7 +109,15 @@ export class BaileysRepository {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
 
-    return this.sendMessageCore(sock, jid, { text }, quoted_id);
+    const result = await this.sendMessageCore(sock, jid, { text }, quoted_id);
+
+    if (!result?.key?.id) {
+      throw new Error("Failed to send text message");
+    }
+
+    return {
+      message_id: result?.key.id,
+    };
   }
   async sendImageMessage(
     sessionId: string,
@@ -126,7 +134,14 @@ export class BaileysRepository {
       caption,
     };
 
-    return this.sendMessageCore(sock, jid, content, quoted_id);
+    const result = await this.sendMessageCore(sock, jid, content, quoted_id);
+    if (!result?.key?.id) {
+      throw new Error("Failed to send text message");
+    }
+
+    return {
+      message_id: result?.key.id,
+    };
   }
   async sendVideoMessage(
     sessionId: string,
@@ -143,7 +158,13 @@ export class BaileysRepository {
       caption,
     };
 
-    return this.sendMessageCore(sock, jid, content, quoted_id);
+    const result = await this.sendMessageCore(sock, jid, content, quoted_id);
+    if (!result?.key?.id) {
+      throw new Error("Failed to send text message");
+    }
+    return {
+      message_id: result?.key.id,
+    };
   }
   async sendAudioMessage(
     sessionId: string,
@@ -159,7 +180,13 @@ export class BaileysRepository {
       mimetype: "audio/mp4",
     };
 
-    return this.sendMessageCore(sock, jid, content, quoted_id);
+    const result = await this.sendMessageCore(sock, jid, content, quoted_id);
+    if (!result?.key?.id) {
+      throw new Error("Failed to send text message");
+    }
+    return {
+      message_id: result?.key.id,
+    };
   }
   async sendVoiceMessage(
     sessionId: string,
@@ -176,7 +203,13 @@ export class BaileysRepository {
       ptt: true,
     };
 
-    return this.sendMessageCore(sock, jid, content, quoted_id);
+    const result = await this.sendMessageCore(sock, jid, content, quoted_id);
+    if (!result?.key?.id) {
+      throw new Error("Failed to send text message");
+    }
+    return {
+      message_id: result?.key.id,
+    };
   }
   async sendDocumentMessage(
     sessionId: string,
@@ -195,7 +228,13 @@ export class BaileysRepository {
       mimetype,
     };
 
-    return this.sendMessageCore(sock, jid, content, quoted_id);
+    const result = await this.sendMessageCore(sock, jid, content, quoted_id);
+    if (!result?.key?.id) {
+      throw new Error("Failed to send text message");
+    }
+    return {
+      message_id: result?.key.id,
+    };
   }
   async getContact(sessionId: string, number: string) {
     const sock = await this.getReadySocket(sessionId);

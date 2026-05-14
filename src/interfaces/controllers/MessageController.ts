@@ -26,7 +26,7 @@ export class MessageController implements IMessage {
   }): Promise<void> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
-    await this.runAdapter.sendText(
+    return await this.runAdapter.sendText(
       params.tenant_id,
       params.sessionId,
       params.number,
@@ -45,7 +45,7 @@ export class MessageController implements IMessage {
   }): Promise<void> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
-    await this.runAdapter.sendImage(
+    return await this.runAdapter.sendImage(
       params.sessionId,
       params.number,
       params.url,
@@ -64,7 +64,7 @@ export class MessageController implements IMessage {
   }): Promise<void> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
-    await this.runAdapter.sendVideo(
+    return await this.runAdapter.sendVideo(
       params.sessionId,
       params.number,
       params.url,
@@ -82,7 +82,7 @@ export class MessageController implements IMessage {
   }): Promise<void> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
-    await this.runAdapter.sendAudio(
+    return await this.runAdapter.sendAudio(
       params.sessionId,
       params.number,
       params.url,
@@ -99,7 +99,7 @@ export class MessageController implements IMessage {
   }): Promise<void> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
-    await this.runAdapter.sendVoice(
+    return await this.runAdapter.sendVoice(
       params.sessionId,
       params.number,
       params.url,
@@ -118,7 +118,7 @@ export class MessageController implements IMessage {
   }): Promise<void> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
-    await this.runAdapter.sendDocument(
+    return await this.runAdapter.sendDocument(
       params.sessionId,
       params.number,
       params.url,
