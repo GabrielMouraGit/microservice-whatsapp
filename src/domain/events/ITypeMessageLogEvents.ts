@@ -1,10 +1,12 @@
+import { WAMessage } from "@whiskeysockets/baileys";
+
 export type ITypeMessageLogEvents = {
   "message.event.logged": {
     uuid: string;
     sessionId: string;
     tenantId: string;
     eventName: string;
-    payload: object;
+    payload: WAMessage;
     name: string;
   };
 

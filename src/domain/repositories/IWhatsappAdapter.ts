@@ -206,7 +206,7 @@ export interface WhatsAppEvent {
 }
 
 export interface WebhookWhatsapp {
-  messages: WhatsAppMessage[];
+  messages: WhatsAppMessage;
   event: WhatsAppEvent;
   channel_id: string;
 }

@@ -1,4 +1,5 @@
 import { IMessageEventLogRepository } from "@/domain/repositories/IMessageEventLogRepository";
+import { WAMessage } from "@whiskeysockets/baileys";
 
 export class OnMessageEventLoggedHandler {
   constructor(private logRepo: IMessageEventLogRepository) {}
@@ -8,7 +9,7 @@ export class OnMessageEventLoggedHandler {
     sessionId: string;
     tenantId: string;
     eventName: string;
-    payload: object;
+    payload: WAMessage;
     name: string;
   }) {
     await this.logRepo.save({
@@ -17,7 +18,7 @@ export class OnMessageEventLoggedHandler {
       tenantId: event.tenantId,
       eventName: event.eventName,
       payload: event.payload,
-      message_id: event.payload?.messages?.[0]?.key?.id || "",
+      message_id: event.payload?.key?.id || "",
     });
   }
 }

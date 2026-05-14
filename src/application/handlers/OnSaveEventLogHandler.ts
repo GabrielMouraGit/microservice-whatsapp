@@ -16,6 +16,8 @@ export class OnSaveEventLogHandler {
       tenantId: event.tenantId,
       eventName: event.eventName,
       payload: event.payload,
+      id: "",
+      message_id: "",
     });
   }
 }

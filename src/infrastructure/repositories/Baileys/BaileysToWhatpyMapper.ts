@@ -14,10 +14,8 @@ import {
 import { WAMessage, proto } from "@whiskeysockets/baileys";
 
 export class BaileysToWhatpyMapper {
-  static map(messages: WAMessage[]): WebhookWhatsapp | null {
-    const mappedMessages = messages
-      .map((msg) => this.buildMessage(msg))
-      .filter((msg): msg is WhatsAppMessage => !!msg);
+  static map(messages: WAMessage): WebhookWhatsapp | null {
+    const mappedMessages = this.buildMessage(messages);
 
     return {
       messages: mappedMessages,
@@ -119,7 +117,7 @@ export class BaileysToWhatpyMapper {
       file_size: Number(sticker.fileLength || 0),
       sha256:
         this.normalizeBase64(sticker.fileSha256 || sticker.fileEncSha256) || "",
-      link: sticker.url || "",
+      link: "https://admin.cnnbrasil.com.br/wp-content/uploads/sites/12/2023/03/image-1.png?w=849&h=477&crop=0", //sticker.url || "",
       is_animated: !!sticker.isAnimated,
       is_ai_sticker: !!sticker.isAiSticker,
       is_lottie: !!sticker.isLottie,
@@ -140,7 +138,7 @@ export class BaileysToWhatpyMapper {
       file_size: Number(audio.fileLength || 0),
       sha256:
         this.normalizeBase64(audio.fileSha256 || audio.fileEncSha256) || "",
-      link: audio.url || "",
+      link: "https://cdn.pixabay.com/download/audio/2023/06/22/audio_70ac38c7c8.mp3?filename=olenchic--154909.mp3", // audio.url || "",
       seconds: audio.seconds || 0,
     };
   }
@@ -154,7 +152,7 @@ export class BaileysToWhatpyMapper {
       file_size: Number(audio.fileLength || 0),
       sha256:
         this.normalizeBase64(audio.fileSha256 || audio.fileEncSha256) || "",
-      link: audio.url || "",
+      link: "https://cdn.pixabay.com/download/audio/2023/06/22/audio_70ac38c7c8.mp3?filename=olenchic--154909.mp3", // audio.url || "",
       seconds: audio.seconds || 0,
     };
   }
@@ -171,7 +169,7 @@ export class BaileysToWhatpyMapper {
       caption: image.caption || "",
       width: image.width || 0,
       height: image.height || 0,
-      link: image.url || "",
+      link: "https://admin.cnnbrasil.com.br/wp-content/uploads/sites/12/2023/03/image-1.png?w=849&h=477&crop=0", // image.url || "",
       preview: `data:${image.mimetype};base64,${this.normalizeBase64(image.jpegThumbnail)}`,
     };
   }
@@ -184,7 +182,7 @@ export class BaileysToWhatpyMapper {
       mime_type: doc.mimetype || "",
       file_size: Number(doc.fileLength || 0),
       sha256: this.normalizeBase64(doc.fileSha256 || doc.fileEncSha256) || "",
-      link: doc.url || "",
+      link: "https://eppg.fgv.br/sites/default/files/teste.pdf", //doc.url || "",
       file_name: doc.fileName || doc.title || "",
       filename: doc.fileName || doc.title || "",
       caption: doc.caption || "",
@@ -203,7 +201,7 @@ export class BaileysToWhatpyMapper {
       width: video.width || 0,
       height: video.height || 0,
       seconds: video.seconds || 0,
-      link: video.url || "",
+      link: "https://videos.pexels.com/video-files/6802247/6802247-uhd_3840_2160_30fps.mp4", // video.url || "",
       caption: video.caption || "",
       preview: video.jpegThumbnail
         ? `data:${video.mimetype};base64,${this.normalizeBase64(

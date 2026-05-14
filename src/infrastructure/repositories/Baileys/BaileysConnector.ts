@@ -69,7 +69,7 @@ export class BaileysConnector {
 
       // performance
       markOnlineOnConnect: false,
-      emitOwnEvents: false,
+      emitOwnEvents: true, // notifica as mesagens enviadas por mim
 
       // estabilidade
       retryRequestDelayMs: 500,
@@ -184,22 +184,29 @@ export class BaileysConnector {
     });
 
     sock.ev.on("messages.upsert", async (m) => {
-      console.log("📩 mensagem recebida");
       const log = new EventLog(sessionId, tenantId);
       try {
         if (m.type !== "notify") return;
 
-        log.log("messages.upsert.raw", m);
+        for (const msg of m.messages) {
+          if (msg.key.fromMe) {
+            console.log("📤 mensagem enviada");
+          } else {
+            console.log("📩 mensagem recebida");
+          }
 
-        const mapped = BaileysToWhatpyMapper.map(m.messages);
+          log.log("messages.upsert.raw", m);
 
-        await this.events.emit("message.received", {
-          sessionId,
-          tenantId,
-          data: mapped,
-        });
+          const mapped = BaileysToWhatpyMapper.map(msg);
 
-        log.done();
+          await this.events.emit("message.received", {
+            sessionId,
+            tenantId,
+            data: mapped,
+          });
+
+          log.done();
+        }
       } catch {
         log.fail();
       } finally {

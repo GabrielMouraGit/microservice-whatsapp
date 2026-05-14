@@ -14,32 +14,26 @@ export class OnMessageReceivedHandler {
     tenantId: string;
     data: WebhookWhatsapp | null;
   }) {
-    if (!event.data) return;
-
     try {
-      for (const msg of event.data.messages) {
-        try {
-          const message = WhatsappMessageMapper.toDomain(msg);
+      if (!event.data) return;
 
-          await this.messageRepo.saveMessage(
-            message,
-            event.tenantId,
-            event.sessionId,
-          );
+      const message = WhatsappMessageMapper.toDomain(event.data.messages);
 
-          await this.rabbitMQPublisher.publishExchange(
-            "messages.exchange",
-            "messages.upsert",
-            {
-              message: message.toDTO(),
-              tenant_id: event.tenantId,
-              session_id: event.sessionId,
-            },
-          );
-        } catch (err) {
-          console.error("❌ erro ao mapear mensagem:", msg.id, err);
-        }
-      }
+      await this.messageRepo.saveMessage(
+        message,
+        event.tenantId,
+        event.sessionId,
+      );
+
+      await this.rabbitMQPublisher.publishExchange(
+        "messages.exchange",
+        "messages.upsert",
+        {
+          message: message.toDTO(),
+          tenant_id: event.tenantId,
+          session_id: event.sessionId,
+        },
+      );
     } catch (err) {
       console.error("❌ erro geral ao processar mensagens:", err);
     }

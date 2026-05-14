@@ -2,6 +2,7 @@ name: microservice-whatsapp-dev
 
 services:
   whatsapp-app:
+    # image: mouragbrl/microservice-whatsapp:latest
     build:
       context: .
       dockerfile: Dockerfile
