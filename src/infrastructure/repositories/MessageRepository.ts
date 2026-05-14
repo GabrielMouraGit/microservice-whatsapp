@@ -306,4 +306,24 @@ export class MessageRepository implements IMessageRepository {
       throw new DomainError("Failed to fetch last message");
     }
   }
+  async getNameUserBy(chat_id: string): Promise<string> {
+    try {
+      const result = await $prismaClient.message.findFirst({
+        where: {
+          chat_id,
+          from_me: false,
+        },
+        orderBy: {
+          timestamp: "desc", // ou created_at se preferir
+        },
+      });
+
+      if (!result) return "";
+
+      return result.from_name;
+    } catch (err) {
+      console.error("ERRO [getMessagesLastMessageByChatId]", err);
+      throw new DomainError("Failed to fetch last message");
+    }
+  }
 }

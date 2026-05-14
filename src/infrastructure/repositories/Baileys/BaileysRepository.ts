@@ -260,13 +260,11 @@ export class BaileysRepository {
     } catch {
       profilePicUrl = "";
     }
-    const messageContact =
-      await this.messageRepository.getMessagesLastMessageByChatId(jid);
-    console.log(messageContact);
+    const nameContact = await this.messageRepository.getNameUserBy(jid);
 
     return {
       jid,
-      name: messageContact?.from_name || "",
+      name: nameContact || "",
       exists: contact.exists,
       profilePicUrl,
     };

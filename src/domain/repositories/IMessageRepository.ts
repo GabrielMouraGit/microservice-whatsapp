@@ -8,4 +8,5 @@ export interface IMessageRepository {
     tenant_id: string,
     sessionId: string,
   ): Promise<void>;
+  getNameUserBy(chat_id: string): Promise<string>;
 }
