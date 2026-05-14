@@ -1,6 +1,6 @@
 import { SessionManager } from "../SessionManager";
 import { BaileysConnector } from "./BaileysConnector";
-import { WASocket } from "@whiskeysockets/baileys";
+import { WAMessage, WASocket } from "@whiskeysockets/baileys";
 import { MessageEventLogRepository } from "../MessageEventLogRepository";
 import { MessageRepository } from "../MessageRepository";
 
@@ -72,7 +72,7 @@ export class BaileysRepository {
     const message =
       await this.messageEventLogRepository.findByMessageId(quoted_id);
 
-    const quoted = message?.payload?.messages?.[0];
+    const quoted = message?.payload as WAMessage;
 
     if (!quoted) return {};
 

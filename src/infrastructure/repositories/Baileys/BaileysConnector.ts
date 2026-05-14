@@ -179,23 +179,28 @@ export class BaileysConnector {
     // salvar credenciais
     sock.ev.on("creds.update", saveCreds);
 
-    sock.ev.on("messages.update", (data) => {
-      console.log("messages.update", JSON.stringify(data, null, 2));
-    });
+    // sock.ev.on("messages.update", (data) => {
+    //   console.log("messages.update", JSON.stringify(data, null, 2));
+    // });
 
     sock.ev.on("messages.upsert", async (m) => {
       const log = new EventLog(sessionId, tenantId);
       try {
-        if (m.type !== "notify") return;
+        //replace | remove | prepend
+        if (!["notify", "append"].includes(m.type)) {
+          return;
+        }
 
         for (const msg of m.messages) {
           if (msg.key.fromMe) {
             console.log("📤 mensagem enviada");
+            // console.log(JSON.stringify(msg, null, 2));
           } else {
             console.log("📩 mensagem recebida");
+            // console.log(JSON.stringify(msg, null, 2));
           }
 
-          log.log("messages.upsert.raw", m);
+          log.log("messages.upsert.raw", msg);
 
           const mapped = BaileysToWhatpyMapper.map(msg);
 

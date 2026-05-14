@@ -16,6 +16,11 @@ import { WAMessage, proto } from "@whiskeysockets/baileys";
 export class BaileysToWhatpyMapper {
   static map(messages: WAMessage): WebhookWhatsapp | null {
     const mappedMessages = this.buildMessage(messages);
+    if (!mappedMessages) {
+      throw new Error(
+        "Failed to map message - unsupported type or missing content",
+      );
+    }
 
     return {
       messages: mappedMessages,
