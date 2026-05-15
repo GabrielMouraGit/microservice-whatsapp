@@ -15,6 +15,14 @@ const PREFIX_SERVICE = "/whatsapp-service";
 
 const fastify = Fastify({ logger: true });
 
+process.on("uncaughtException", (err) => {
+  console.error("💥 uncaughtException:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("💥 unhandledRejection:", reason);
+});
+
 fastify.register(cors, {
   origin: "*",
 });

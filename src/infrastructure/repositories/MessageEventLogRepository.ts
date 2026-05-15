@@ -10,6 +10,9 @@ export class MessageEventLogRepository implements IMessageEventLogRepository {
   constructor() {}
 
   async save(data: MessageEventLogInput): Promise<MessageEventLogOutput> {
+    const oldMessage = await this.findById(data.id);
+    if (oldMessage) throw new Error("Ja cadastrada");
+
     const result = await $prismaClient.messageEventLog.create({
       data: {
         id: data.id,
