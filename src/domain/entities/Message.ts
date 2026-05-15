@@ -109,7 +109,7 @@ export class Message {
       !this._document &&
       !this._context
     ) {
-      throw new DomainError("Message precisa ter pelo menos um conteúdo");
+      throw new DomainError("Monst dto = message.toDTOconteúdo");
     }
   }
 

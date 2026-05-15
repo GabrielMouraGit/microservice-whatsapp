@@ -8,3 +8,4 @@ POSTGRES_USER=node
 POSTGRES_PASSWORD=randompassword
 POSTGRES_DB=mydb
 RABBITMQ_URL="amqp://admin:admin@host.docker.internal:5672"
+GATEWAY_SECRET_AUTH="token123"
