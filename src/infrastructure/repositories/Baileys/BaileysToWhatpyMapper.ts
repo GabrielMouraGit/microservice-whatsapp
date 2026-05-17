@@ -221,7 +221,7 @@ export class BaileysToWhatpyMapper {
       id: msg.key.id || "",
       from_me: msg.key.fromMe || false,
       chat_id: msg.key.remoteJidAlt || msg.key.remoteJid || "",
-      timestamp: Number(msg.messageTimestamp) || 0,
+      timestamp: Number(new Date(msg.messageTimestamp * 1000)),
       source: "baileys",
       starred: false,
       status: "sent",
