@@ -1,10 +1,12 @@
-// RabbitMQBootstrap.ts
 import { Channel } from "amqplib";
 import { RabbitMQRegistry } from "./RabbitMQRegistry";
 
 export class RabbitMQBootstrap {
   static async setup(channel: Channel) {
     for (const ex of RabbitMQRegistry) {
+      //
+      // EXCHANGE PRINCIPAL
+      //
       await channel.assertExchange(ex.exchange, ex.type, {
         durable: true,
       });
@@ -13,38 +15,9 @@ export class RabbitMQBootstrap {
         const retry = queue.retry;
         const dlq = queue.dlq;
 
-        // 🔥 fila principal
-        await channel.assertQueue(queue.name, {
-          durable: true,
-          arguments: {
-            ...(retry
-              ? {
-                  "x-dead-letter-exchange": ex.exchange,
-                  "x-dead-letter-routing-key": queue.routingKeys[0],
-                }
-              : {}),
-          },
-        });
-
-        // retry queue (com delay)
-        if (retry) {
-          await channel.assertQueue(retry.queue, {
-            durable: true,
-            arguments: {
-              "x-message-ttl": retry.ttl,
-              "x-dead-letter-exchange": ex.exchange,
-              "x-dead-letter-routing-key": queue.routingKeys[0],
-            },
-          });
-
-          await channel.bindQueue(
-            retry.queue,
-            ex.exchange,
-            `${queue.routingKeys[0]}.retry`,
-          );
-        }
-
-        // 💀 DLQ final
+        //
+        // DLQ EXCHANGE + DLQ QUEUE
+        //
         if (dlq) {
           await channel.assertExchange(dlq.exchange, "topic", {
             durable: true,
@@ -54,14 +27,68 @@ export class RabbitMQBootstrap {
             durable: true,
           });
 
-          await channel.bindQueue(dlq.queue, dlq.exchange, dlq.routingKey);
+          await channel.bindQueue(dlq.queue, dlq.exchange, queue.routingKey);
         }
 
-        // bind fila principal
-        for (const key of queue.routingKeys) {
-          await channel.bindQueue(queue.name, ex.exchange, key);
+        //
+        // MAIN QUEUE
+        //
+        await channel.assertQueue(queue.name, {
+          durable: true,
+
+          arguments: {
+            ...(retry
+              ? {
+                  //
+                  // ERRO -> RETRY QUEUE
+                  //
+                  "x-dead-letter-exchange": ex.exchange,
+
+                  "x-dead-letter-routing-key": `${queue.routingKey}.retry`,
+                }
+              : {}),
+          },
+        });
+
+        //
+        // MAIN QUEUE BIND
+        //
+        await channel.bindQueue(queue.name, ex.exchange, queue.routingKey);
+
+        //
+        // RETRY QUEUE
+        //
+        if (retry) {
+          await channel.assertQueue(retry.queue, {
+            durable: true,
+
+            arguments: {
+              //
+              // TEMPO DE ESPERA
+              //
+              "x-message-ttl": retry.ttl,
+
+              //
+              // TTL EXPIROU -> VOLTA PRA MAIN
+              //
+              "x-dead-letter-exchange": ex.exchange,
+
+              "x-dead-letter-routing-key": queue.routingKey,
+            },
+          });
+
+          //
+          // RETRY BIND
+          //
+          await channel.bindQueue(
+            retry.queue,
+            ex.exchange,
+            `${queue.routingKey}.retry`,
+          );
         }
       }
     }
+
+    console.log("✅ RabbitMQ bootstrap finalizado");
   }
 }

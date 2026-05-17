@@ -1,18 +1,22 @@
-import amqp, { Channel, Connection } from "amqplib";
+import amqp, { Channel, ChannelModel } from "amqplib";
 
 export class RabbitMQConnection {
   private static instance: RabbitMQConnection;
 
-  private connection!: Connection;
-  private channel!: Channel;
+  private connection?: ChannelModel;
+  private channel?: Channel;
 
   private isConnecting = false;
+  private isReconnecting = false;
+
+  private reconnectListeners: Array<(channel: Channel) => Promise<void>> = [];
 
   private constructor() {}
 
   static async getInstance() {
     if (!this.instance) {
       this.instance = new RabbitMQConnection();
+
       await this.instance.connect();
     }
 
@@ -25,57 +29,88 @@ export class RabbitMQConnection {
     this.isConnecting = true;
 
     try {
-      console.log("conectando no rabbitmq...");
+      console.log("🔄 conectando RabbitMQ...");
 
-      this.connection = await amqp.connect(process.env.RABBITMQ_URL!);
+      const connection = await amqp.connect(process.env.RABBITMQ_URL!);
 
-      this.connection.on("error", (err) => {
+      this.connection = connection;
+
+      connection.on("error", (err) => {
         console.error("❌ rabbit connection error:", err);
       });
 
-      this.connection.on("close", async () => {
+      connection.on("close", async () => {
         console.error("⚠️ rabbit connection closed");
 
-        this.isConnecting = false;
+        this.channel = undefined;
+        this.connection = undefined;
 
-        setTimeout(async () => {
-          try {
-            await this.connect();
-          } catch (err) {
-            console.error("❌ erro reconnect:", err);
-          }
-        }, 5000);
+        await this.reconnect();
       });
 
-      this.channel = await this.connection.createChannel();
+      const channel = await connection.createChannel();
 
-      this.channel.on("error", (err) => {
+      this.channel = channel;
+
+      channel.on("error", (err) => {
         console.error("❌ channel error:", err);
       });
 
-      this.channel.on("close", () => {
+      channel.on("close", () => {
         console.error("⚠️ channel closed");
       });
 
       console.log("✅ rabbit conectado");
 
-      this.isConnecting = false;
+      for (const listener of this.reconnectListeners) {
+        await listener(channel);
+      }
     } catch (err) {
       console.error("❌ falha rabbit:", err);
-
+      throw err;
+    } finally {
       this.isConnecting = false;
-
-      setTimeout(async () => {
-        await this.connect();
-      }, 5000);
     }
   }
 
-  async recreateChannel() {
-    this.channel = await this.connection.createChannel();
+  private async reconnect() {
+    if (this.isReconnecting) return;
+
+    this.isReconnecting = true;
+
+    while (!this.connection) {
+      try {
+        console.log("🔄 tentando reconectar RabbitMQ...");
+
+        await this.connect();
+
+        if (this.connection) {
+          console.log("✅ RabbitMQ reconectado");
+          break;
+        }
+      } catch (err) {
+        console.error("❌ erro reconnect:", err);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+
+    this.isReconnecting = false;
   }
 
-  getChannel(): Channel {
+  async registerConsumer(listener: (channel: Channel) => Promise<void>) {
+    this.reconnectListeners.push(listener);
+
+    if (this.channel) {
+      await listener(this.channel);
+    }
+  }
+
+  getChannel() {
+    if (!this.channel) {
+      throw new Error("RabbitMQ channel indisponível");
+    }
+
     return this.channel;
   }
 }

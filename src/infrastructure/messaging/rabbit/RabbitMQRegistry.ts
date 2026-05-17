@@ -1,19 +1,23 @@
 export const RabbitMQRegistry: RabbitMQExchangeConfig[] = [
   {
     exchange: "messages.exchange",
+
     type: "topic",
+
     queues: [
       {
         name: "messages.queue",
-        routingKeys: ["messages.upsert"],
+
+        routingKey: "messages.upsert",
+
         retry: {
           queue: "messages.queue.retry",
-          ttl: 30000, // 30 segundos
+          ttl: 30000,
         },
+
         dlq: {
           exchange: "messages.dlx",
           queue: "messages.queue.dlq",
-          routingKey: "messages.upsert.dlq",
         },
       },
     ],
@@ -22,12 +26,14 @@ export const RabbitMQRegistry: RabbitMQExchangeConfig[] = [
 
 export type RabbitMQRouting = {
   name: string;
-  routingKeys: string[];
+
+  routingKey: string;
+
   dlq?: {
     exchange: string;
     queue: string;
-    routingKey: string;
   };
+
   retry?: {
     queue: string;
     ttl: number;

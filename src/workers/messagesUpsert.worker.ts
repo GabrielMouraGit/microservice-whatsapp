@@ -1,61 +1,162 @@
+import { ConsumeMessage, Channel } from "amqplib";
+
 import { registerSessionHandlers } from "@/infrastructure/events/implementation/session.handlers";
 import { RabbitMQBootstrap } from "@/infrastructure/messaging/rabbit/RabbitMQBootstrap";
 import { RabbitMQConnection } from "@/infrastructure/messaging/rabbit/RabbitMQConnection";
+
 import { eventBus } from "container";
 
 const MAX_RETRIES = 3;
 
-async function start() {
+const MAIN_QUEUE = "messages.queue";
+const RETRY_QUEUE = "messages.queue.retry";
+const DLQ_QUEUE = "messages.queue.dlq";
+
+async function processMessage(channel: Channel, msg: ConsumeMessage) {
+  let content: any;
+
+  // proteção payload inválido
   try {
-    // registra handlers do domínio
-    registerSessionHandlers();
+    content = JSON.parse(msg.content.toString());
+  } catch (err) {
+    console.error("❌ payload inválido:", err);
 
-    const conn = await RabbitMQConnection.getInstance();
-    const channel = conn.getChannel();
+    channel.sendToQueue(DLQ_QUEUE, msg.content, {
+      persistent: true,
+      headers: {
+        "x-error": "invalid-json",
+        "x-failed-at": new Date().toISOString(),
+      },
+    });
 
-    await RabbitMQBootstrap.setup(channel);
+    channel.ack(msg);
 
-    channel.prefetch(10);
+    return;
+  }
 
-    console.log("🟢 Worker messages.queue rodando...");
+  const headers = msg.properties.headers || {};
 
-    channel.consume("messages.queue", async (msg) => {
-      if (!msg) return;
+  const retryCount = Number(headers["x-retry-count"] ?? 0);
 
-      const content = JSON.parse(msg.content.toString());
+  try {
+    // ignora grupos/newsletter
+    const ignoreTypes = ["@newsletter", "@g.us"];
 
-      const headers = msg.properties.headers || {};
-      const retryCount = headers["x-retry-count"] || 0;
+    if (
+      ignoreTypes.some((type) =>
+        String(content?.message?.from || "").includes(type),
+      )
+    ) {
+      channel.ack(msg);
+      return;
+    }
 
-      try {
-        // send event
-        await eventBus.emit("message.received", content);
+    // dispara evento
+    await eventBus.emit("message.received", content);
+
+    channel.ack(msg);
+
+    console.log("✅ mensagem processada");
+  } catch (err) {
+    console.error("❌ erro no worker:", err);
+
+    try {
+      // retry
+      if (retryCount < MAX_RETRIES) {
+        channel.sendToQueue(RETRY_QUEUE, msg.content, {
+          persistent: true,
+          headers: {
+            ...headers,
+            "x-retry-count": retryCount + 1,
+            "x-last-error":
+              err instanceof Error ? err.message : "unknown-error",
+          },
+        });
 
         channel.ack(msg);
-      } catch (err) {
-        console.error("❌ erro no worker:", err);
 
-        // ainda pode tentar novamente
-        if (retryCount < MAX_RETRIES) {
-          const retryQueue = "messages.queue.retry";
+        console.log(`🔄 retry ${retryCount + 1}/${MAX_RETRIES}`);
 
-          channel.sendToQueue(retryQueue, msg.content, {
-            headers: {
-              ...headers,
-              "x-retry-count": retryCount + 1,
-            },
-          });
-
-          channel.ack(msg);
-          return;
-        }
-
-        // estourou retry → manda pra DLQ
-        channel.nack(msg, false, false);
+        return;
       }
+
+      // DLQ
+      channel.sendToQueue(DLQ_QUEUE, msg.content, {
+        persistent: true,
+        headers: {
+          ...headers,
+          "x-failed-at": new Date().toISOString(),
+          "x-last-error": err instanceof Error ? err.message : "unknown-error",
+        },
+      });
+
+      channel.ack(msg);
+
+      console.log("☠️ mensagem enviada DLQ");
+    } catch (retryErr) {
+      console.error("❌ erro reenfileirar:", retryErr);
+
+      // sem ACK
+      // RabbitMQ reentrega
+    }
+  }
+}
+
+export async function start() {
+  try {
+    // registra handlers domínio
+    registerSessionHandlers();
+
+    const rabbit = await RabbitMQConnection.getInstance();
+
+    await rabbit.registerConsumer(async (channel) => {
+      console.log("🟢 iniciando topology...");
+
+      // setup topology
+      await RabbitMQBootstrap.setup(channel);
+
+      // MAIN
+      await channel.assertQueue(MAIN_QUEUE, {
+        durable: true,
+      });
+
+      // RETRY
+      await channel.assertQueue(RETRY_QUEUE, {
+        durable: true,
+
+        // retry automático
+        messageTtl: 5000,
+
+        deadLetterExchange: "",
+
+        deadLetterRoutingKey: MAIN_QUEUE,
+      });
+
+      // DLQ
+      await channel.assertQueue(DLQ_QUEUE, {
+        durable: true,
+      });
+
+      await channel.prefetch(10);
+
+      console.log("🟢 worker messages.queue rodando...");
+
+      await channel.consume(MAIN_QUEUE, async (msg) => {
+        if (!msg) return;
+
+        try {
+          await processMessage(channel, msg);
+        } catch (err) {
+          console.error("❌ erro fatal consumer:", err);
+
+          // requeue automática
+          channel.nack(msg, false, true);
+        }
+      });
     });
   } catch (err) {
     console.error("❌ falha ao iniciar worker:", err);
+
     process.exit(1);
   }
 }
