@@ -10,6 +10,7 @@ import { registerEventHandlers } from "@/infrastructure/events/RegisterEvents";
 import { MessageRoutes } from "@/interfaces/routes/MessageRoutes";
 import { ContactRoutes } from "@/interfaces/routes/ContactRoutes";
 import { TenantRoutes } from "@/interfaces/routes/TenantRoutes";
+import { bootstrapRabbitMQ } from "@/infrastructure/messaging/rabbit/RabbitMQInitApp";
 
 const PREFIX_SERVICE = "/whatsapp-service";
 
@@ -40,23 +41,27 @@ fastify.get(`${PREFIX_SERVICE}/public/api/v1/status`, async () => {
 });
 
 async function start() {
-  registerEventHandlers();
-
-  const repositorySession = new SessionRepositoryPrisma();
-
-  const sessionBootstrap = new SessionBootstrap(
-    baileysConnector,
-    repositorySession,
-  );
-
   // sobe API primeiro
   await fastify.listen({ port: 3060, host: "0.0.0.0" });
 
-  console.log("🚀 API rodando");
+  try {
+    await bootstrapRabbitMQ();
 
-  sessionBootstrap.init().catch((err) => {
-    console.error("Erro ao inicializar sessões:", err);
-  });
+    registerEventHandlers();
+
+    const repositorySession = new SessionRepositoryPrisma();
+
+    const sessionBootstrap = new SessionBootstrap(
+      baileysConnector,
+      repositorySession,
+    );
+
+    sessionBootstrap.init().catch((err) => {
+      console.error("Erro ao inicializar sessões:", err);
+    });
+  } catch (err) {
+    console.error("❌ erro no background init:", err);
+  }
 }
 
 start();
