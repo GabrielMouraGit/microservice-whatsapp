@@ -142,4 +142,22 @@ export class MessageAdapters {
       tenant_id,
     });
   }
+  async httpEditMessage(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const result = request.body as {
+      session_id: string;
+      number: string;
+      message_id: string;
+      new_text: string;
+    };
+
+    return await this.controller.editMessage({
+      messageId: result.message_id,
+      number: result.number,
+      sessionId: result.session_id,
+      newText: result.new_text,
+      tenant_id,
+    });
+  }
 }

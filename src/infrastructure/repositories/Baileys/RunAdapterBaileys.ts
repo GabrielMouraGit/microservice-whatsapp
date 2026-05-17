@@ -121,4 +121,12 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
   async isConnected(sessionId: string): Promise<{ connected: boolean }> {
     return await this.repository.isConnected(sessionId);
   }
+  async editMessage(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    newText: string,
+  ): Promise<void> {
+    await this.repository.editMessage(sessionId, number, messageId, newText);
+  }
 }

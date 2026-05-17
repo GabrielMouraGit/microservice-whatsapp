@@ -43,4 +43,8 @@ export async function MessageRoutes(net: FastifyInstance) {
     "/api/v1/message/delete-message",
     adapters.httpDeleteMessage.bind(adapters),
   );
+  net.post(
+    "/api/v1/message/edit-message",
+    adapters.httpEditMessage.bind(adapters),
+  );
 }

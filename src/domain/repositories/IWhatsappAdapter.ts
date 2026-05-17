@@ -68,6 +68,13 @@ export interface IWhatsappAdapter {
     phone: string;
     profilePicUrl: string;
   }>;
+
+  editMessage(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    newText: string,
+  ): Promise<void>;
 }
 
 export interface WhatsAppMessageText {

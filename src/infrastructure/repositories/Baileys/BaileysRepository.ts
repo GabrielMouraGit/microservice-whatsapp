@@ -351,4 +351,48 @@ export class BaileysRepository {
       throw new Error(`Failed to delete message: ${err?.message || err}`);
     }
   }
+  async editMessage(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    newText: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    try {
+      const message =
+        await this.messageEventLogRepository.findByMessageId(messageId);
+
+      if (!message) {
+        throw new Error("Message not found");
+      }
+
+      const originalKey = message.payload?.key;
+
+      console.log("ORIGINAL KEY", originalKey);
+
+      const result = await sock.sendMessage(jid, {
+        text: newText,
+        edit: {
+          id: originalKey.id,
+          fromMe: true,
+          remoteJid: originalKey.remoteJid,
+        },
+      });
+
+      if (!result?.key?.id) {
+        throw new Error("Failed to edit message");
+      }
+
+      return {
+        success: true,
+        message_id: result.key.id,
+        edited_message_id: messageId,
+      };
+    } catch (err: any) {
+      throw new Error(`Failed to edit message: ${err?.message || err}`);
+    }
+  }
 }

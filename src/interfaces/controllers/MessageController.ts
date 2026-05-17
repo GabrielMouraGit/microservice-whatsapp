@@ -141,4 +141,21 @@ export class MessageController implements IMessage {
       params.quoted_id,
     );
   }
+
+  async editMessage(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    newText: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.editMessage(
+      params.sessionId,
+      params.number,
+      params.messageId,
+      params.newText,
+    );
+  }
 }

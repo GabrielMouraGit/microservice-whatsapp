@@ -55,4 +55,11 @@ export interface IMessage {
     number: string;
     messageId: string;
   }): Promise<void>;
+  editMessage(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    newText: string;
+  }): Promise<void>;
 }
