@@ -5,7 +5,7 @@ export interface IMessage {
     number: string;
     text: string;
     quoted_id: string;
-  }): Promise<void>;
+  }): Promise<{ message_id: string }>;
 
   sendImage(data: {
     tenant_id: string;
@@ -14,8 +14,7 @@ export interface IMessage {
     url: string;
     caption: string;
     quoted_id: string;
-  }): Promise<void>;
-
+  }): Promise<{ message_id: string }>;
   sendVideo(data: {
     tenant_id: string;
     sessionId: string;
@@ -23,7 +22,7 @@ export interface IMessage {
     url: string;
     caption: string;
     quoted_id: string;
-  }): Promise<void>;
+  }): Promise<{ message_id: string }>;
 
   sendAudio(data: {
     tenant_id: string;
@@ -31,7 +30,7 @@ export interface IMessage {
     number: string;
     url: string;
     quoted_id?: string;
-  }): Promise<void>;
+  }): Promise<{ message_id: string }>;
 
   sendVoice(data: {
     tenant_id: string;
@@ -39,7 +38,7 @@ export interface IMessage {
     number: string;
     url: string;
     quoted_id: string;
-  }): Promise<void>;
+  }): Promise<{ message_id: string }>;
 
   sendDocument(data: {
     tenant_id: string;
@@ -49,5 +48,11 @@ export interface IMessage {
     fileName: string;
     mimetype: string;
     quoted_id: string;
+  }): Promise<{ message_id: string }>;
+  deleteMessage(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
   }): Promise<void>;
 }

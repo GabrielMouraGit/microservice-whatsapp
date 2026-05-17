@@ -23,7 +23,7 @@ export class MessageController implements IMessage {
     number: string;
     text: string;
     quoted_id: string;
-  }): Promise<void> {
+  }): Promise<{ message_id: string }> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
     return await this.runAdapter.sendText(
@@ -34,6 +34,20 @@ export class MessageController implements IMessage {
       params.quoted_id,
     );
   }
+  async deleteMessage(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.deleteMessage(
+      params.sessionId,
+      params.number,
+      params.messageId,
+    );
+  }
 
   async sendImage(params: {
     tenant_id: string;
@@ -42,7 +56,7 @@ export class MessageController implements IMessage {
     url: string;
     caption: string;
     quoted_id: string;
-  }): Promise<void> {
+  }): Promise<{ message_id: string }> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
     return await this.runAdapter.sendImage(
@@ -61,7 +75,7 @@ export class MessageController implements IMessage {
     url: string;
     caption: string;
     quoted_id: string;
-  }): Promise<void> {
+  }): Promise<{ message_id: string }> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
     return await this.runAdapter.sendVideo(
@@ -79,7 +93,7 @@ export class MessageController implements IMessage {
     number: string;
     url: string;
     quoted_id?: string;
-  }): Promise<void> {
+  }): Promise<{ message_id: string }> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
     return await this.runAdapter.sendAudio(
@@ -96,7 +110,7 @@ export class MessageController implements IMessage {
     number: string;
     url: string;
     quoted_id: string;
-  }): Promise<void> {
+  }): Promise<{ message_id: string }> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
     return await this.runAdapter.sendVoice(
@@ -115,7 +129,7 @@ export class MessageController implements IMessage {
     fileName: string;
     mimetype: string;
     quoted_id: string;
-  }): Promise<void> {
+  }): Promise<{ message_id: string }> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
     return await this.runAdapter.sendDocument(

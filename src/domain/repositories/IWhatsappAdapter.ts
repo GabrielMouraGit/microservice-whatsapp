@@ -11,6 +11,11 @@ export interface IWhatsappAdapter {
     text: string,
     quoted_id: string,
   ): Promise<{ message_id: string }>;
+  deleteMessage(
+    sessionId: string,
+    number: string,
+    message_id: string,
+  ): Promise<{ message_id: string }>;
   sendImage(
     sessionId: string,
     number: string,

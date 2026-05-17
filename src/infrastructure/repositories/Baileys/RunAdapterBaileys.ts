@@ -19,6 +19,10 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
       qr: qr || "",
     };
   }
+  async deleteMessage(sessionId: string, number: string, message_id: string) {
+    return await this.repository.deleteMessage(sessionId, number, message_id);
+  }
+
   async sendText(
     tenant_id: string,
     sessionId: string,

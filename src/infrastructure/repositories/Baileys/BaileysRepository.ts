@@ -317,4 +317,38 @@ export class BaileysRepository {
       profilePicUrl,
     };
   }
+  async deleteMessage(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    // participant?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    const key = {
+      remoteJid: jid,
+      id: messageId,
+      fromMe: true,
+    };
+
+    // Se for grupo, precisa do participant
+    // if (participant) {
+    //   key.participant = participant;
+    // }
+
+    try {
+      await sock.sendMessage(jid, {
+        delete: key,
+      });
+
+      return {
+        success: true,
+        message_id: messageId,
+      };
+    } catch (err: any) {
+      throw new Error(`Failed to delete message: ${err?.message || err}`);
+    }
+  }
 }

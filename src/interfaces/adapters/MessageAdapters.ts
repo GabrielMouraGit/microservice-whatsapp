@@ -126,4 +126,20 @@ export class MessageAdapters {
       quoted_id: quoted_id || "",
     });
   }
+  async httpDeleteMessage(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const result = request.body as {
+      session_id: string;
+      number: string;
+      message_id: string;
+    };
+
+    return await this.controller.deleteMessage({
+      messageId: result.message_id,
+      number: result.number,
+      sessionId: result.session_id,
+      tenant_id,
+    });
+  }
 }
