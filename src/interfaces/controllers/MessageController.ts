@@ -158,4 +158,18 @@ export class MessageController implements IMessage {
       params.newText,
     );
   }
+  async forwardMessage(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.forwardMessage(
+      params.sessionId,
+      params.number,
+      params.messageId,
+    );
+  }
 }

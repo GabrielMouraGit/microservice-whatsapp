@@ -129,4 +129,11 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
   ): Promise<void> {
     await this.repository.editMessage(sessionId, number, messageId, newText);
   }
+  async forwardMessage(
+    sessionId: string,
+    number: string,
+    messageId: string,
+  ): Promise<void> {
+    await this.repository.forwardMessage(sessionId, number, messageId);
+  }
 }

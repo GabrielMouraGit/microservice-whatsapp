@@ -47,4 +47,8 @@ export async function MessageRoutes(net: FastifyInstance) {
     "/api/v1/message/edit-message",
     adapters.httpEditMessage.bind(adapters),
   );
+  net.post(
+    "/api/v1/message/forward-message",
+    adapters.httpForwardMessage.bind(adapters),
+  );
 }

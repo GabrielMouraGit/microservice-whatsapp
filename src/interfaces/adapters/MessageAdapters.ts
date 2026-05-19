@@ -160,4 +160,20 @@ export class MessageAdapters {
       tenant_id,
     });
   }
+  async httpForwardMessage(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const result = request.body as {
+      session_id: string;
+      number: string;
+      message_id: string;
+    };
+
+    return await this.controller.forwardMessage({
+      messageId: result.message_id,
+      number: result.number,
+      sessionId: result.session_id,
+      tenant_id,
+    });
+  }
 }

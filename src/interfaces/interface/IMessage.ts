@@ -62,4 +62,10 @@ export interface IMessage {
     messageId: string;
     newText: string;
   }): Promise<void>;
+  forwardMessage(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+  }): Promise<void>;
 }

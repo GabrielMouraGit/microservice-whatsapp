@@ -16,6 +16,12 @@ export interface IWhatsappAdapter {
     number: string,
     message_id: string,
   ): Promise<{ message_id: string }>;
+  forwardMessage(
+    sessionId: string,
+    number: string,
+    message_id: string,
+  ): Promise<void>;
+
   sendImage(
     sessionId: string,
     number: string,

@@ -317,6 +317,35 @@ export class BaileysRepository {
       profilePicUrl,
     };
   }
+
+  async forwardMessage(sessionId: string, number: string, messageId: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    const message =
+      await this.messageEventLogRepository.findByMessageId(messageId);
+
+    if (!message?.payload) {
+      throw new Error("Message not found");
+    }
+
+    const waMessage = message.payload as WAMessage;
+
+    const result = await sock.sendMessage(jid, {
+      forward: waMessage,
+    });
+
+    if (!result?.key?.id) {
+      throw new Error("Failed to forward message");
+    }
+
+    return {
+      success: true,
+      message_id: result.key.id,
+    };
+  }
+
   async deleteMessage(
     sessionId: string,
     number: string,
