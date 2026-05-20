@@ -6,6 +6,7 @@ export const messageDocumentSchema = z.object({
   file_size: z.number(),
   sha256: z.string(),
   filename: z.string(),
+  caption: z.string().nullable().optional(),
   link: z.string(),
 });
 

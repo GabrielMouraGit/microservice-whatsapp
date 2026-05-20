@@ -16,6 +16,7 @@ import { v4 } from "uuid";
 
 export class BaileysToWhatpyMapper {
   static map(messages: WAMessage): WebhookWhatsapp | null {
+    console.log("[ORIGINAL MESSAGE]", messages);
     const mappedMessages = this.buildMessage(messages);
     if (!mappedMessages) {
       throw new Error(
@@ -72,6 +73,18 @@ export class BaileysToWhatpyMapper {
         type: "document",
         document: this.buildDocumentMessage(m.documentMessage),
         context: this.buildContext(m.documentMessage.contextInfo),
+      };
+    }
+    if (m?.documentWithCaptionMessage?.message?.documentMessage) {
+      return {
+        ...base,
+        type: "document",
+        document: this.buildDocumentMessage(
+          m?.documentWithCaptionMessage?.message?.documentMessage,
+        ),
+        context: this.buildContext(
+          m?.documentWithCaptionMessage?.message?.documentMessage?.contextInfo,
+        ),
       };
     }
 
