@@ -12,6 +12,7 @@ import {
 } from "@/domain/repositories/IWhatsappAdapter";
 
 import { WAMessage, proto } from "@whiskeysockets/baileys";
+import { v4 } from "uuid";
 
 export class BaileysToWhatpyMapper {
   static map(messages: WAMessage): WebhookWhatsapp | null {
@@ -117,7 +118,7 @@ export class BaileysToWhatpyMapper {
     sticker: proto.Message.IStickerMessage,
   ): WhatsAppMessageSticker {
     return {
-      id: this.normalizeBase64(sticker.fileSha256) || "",
+      id: v4(),
       mime_type: sticker.mimetype || "",
       file_size: Number(sticker.fileLength || 0),
       sha256:
@@ -138,7 +139,7 @@ export class BaileysToWhatpyMapper {
     audio: proto.Message.IAudioMessage,
   ): WhatsAppMessageAudio {
     return {
-      id: this.normalizeBase64(audio.fileSha256) || "",
+      id: v4(),
       mime_type: audio.mimetype || "",
       file_size: Number(audio.fileLength || 0),
       sha256:
@@ -152,7 +153,7 @@ export class BaileysToWhatpyMapper {
     audio: proto.Message.IAudioMessage,
   ): WhatsAppMessageVoice {
     return {
-      id: this.normalizeBase64(audio.fileSha256) || "",
+      id: v4(),
       mime_type: audio.mimetype || "",
       file_size: Number(audio.fileLength || 0),
       sha256:
@@ -166,7 +167,7 @@ export class BaileysToWhatpyMapper {
     image: proto.Message.IImageMessage,
   ): WhatsAppMessageImage {
     return {
-      id: this.normalizeBase64(image.fileSha256) || "",
+      id: v4(),
       mime_type: image.mimetype || "",
       file_size: Number(image.fileLength || 0),
       sha256:
@@ -183,7 +184,7 @@ export class BaileysToWhatpyMapper {
     doc: proto.Message.IDocumentMessage,
   ): WhatsAppMessageDocument {
     return {
-      id: this.normalizeBase64(doc.fileSha256) || "",
+      id: v4(),
       mime_type: doc.mimetype || "",
       file_size: Number(doc.fileLength || 0),
       sha256: this.normalizeBase64(doc.fileSha256 || doc.fileEncSha256) || "",
@@ -198,7 +199,7 @@ export class BaileysToWhatpyMapper {
     video: proto.Message.IVideoMessage,
   ): WhatsAppMessageVideo {
     return {
-      id: this.normalizeBase64(video.fileSha256) || "",
+      id: v4(),
       mime_type: video.mimetype || "",
       file_size: Number(video.fileLength || 0),
       sha256:
