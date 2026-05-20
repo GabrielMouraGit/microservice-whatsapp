@@ -147,6 +147,7 @@ model MessageDocument {
 
   filename String
   link     String
+  caption String?
 
   message Message @relation(fields: [message_id], references: [id], onDelete: Cascade)
   tenant_id                        String  
