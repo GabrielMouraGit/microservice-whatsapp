@@ -191,7 +191,19 @@ export class BaileysConnector {
           return;
         }
 
+        if (!m.messages?.length) return;
+
         for (const msg of m.messages) {
+          if (!msg.message) continue;
+
+          if (
+            msg.key.remoteJid === "status@broadcast" ||
+            msg.broadcast ||
+            msg.message?.senderKeyDistributionMessage
+          ) {
+            continue;
+          }
+
           if (msg.key.fromMe) {
             console.log("📤 mensagem enviada");
             // console.log(JSON.stringify(msg, null, 2));
@@ -203,6 +215,8 @@ export class BaileysConnector {
           log.log("messages.upsert.raw", msg);
 
           const mapped = BaileysToWhatpyMapper.map(msg);
+
+          if (!mapped) continue;
 
           await this.events.emit("message.received", {
             sessionId,
