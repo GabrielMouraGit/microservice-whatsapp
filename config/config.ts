@@ -3,4 +3,6 @@ import "dotenv/config";
 export const $config = {
   RABBITMQ_URL: process.env.RABBITMQ_URL!,
   GATEWAY_SECRET_AUTH: process.env.GATEWAY_SECRET_AUTH!,
+  MICROSERVICE_STORAGE: process.env.MICROSERVICE_STORAGE!,
+  MICROSERVICE_STORAGE_TOKEN: process.env.MICROSERVICE_STORAGE_TOKEN!,
 };
