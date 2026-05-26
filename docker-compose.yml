@@ -15,6 +15,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       RABBITMQ_URL: ${RABBITMQ_URL}
       GATEWAY_SECRET_AUTH: ${GATEWAY_SECRET_AUTH}
+      MICROSERVICE_STORAGE: ${MICROSERVICE_STORAGE}
+      MICROSERVICE_STORAGE_TOKEN: ${MICROSERVICE_STORAGE_TOKEN}
 
     restart: unless-stopped
     volumes:
@@ -23,10 +25,10 @@ services:
     depends_on:
       - whatsapp-db
       - rabbitmq
-    command: sh -c "npm run prisma:deploy && npm run dev"
+    command: sh -c "npm i && npm run prisma:deploy && npm run dev"
 
   whatsapp-db:
-    image: postgres:15
+    image: postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
