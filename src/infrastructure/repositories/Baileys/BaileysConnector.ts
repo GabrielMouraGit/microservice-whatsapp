@@ -359,7 +359,7 @@ export class BaileysConnector {
       const mimeType = media.mimetype || "application/octet-stream";
 
       // nome original
-      let fileName = media.fileName || media.caption || media.displayName;
+      let fileName = media.fileName;
 
       // extensão
       const extension = mimeType.split("/")[1]?.split(";")[0] || "bin";
@@ -382,7 +382,7 @@ export class BaileysConnector {
         fileName,
       );
 
-      formData.append("path", `public/${tenant_id}/whatsapp`);
+      formData.append("path", `public/whatsapp/${msg.key.id}`);
 
       const response = await fetch(
         `${$config.MICROSERVICE_STORAGE}/storage/api/v1/file/add-item`,
@@ -395,7 +395,7 @@ export class BaileysConnector {
           body: formData,
         },
       );
-      console.log("[response] *-----", response);
+
       if (!response.ok) {
         throw new Error(`erro upload: ${response.status}`);
       }
