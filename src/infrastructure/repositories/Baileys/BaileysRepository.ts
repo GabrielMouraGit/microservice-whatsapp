@@ -9,7 +9,7 @@ export class BaileysRepository {
     private connector: BaileysConnector,
     private sessions: SessionManager,
     private messageEventLogRepository: MessageEventLogRepository,
-    private messageRepository: MessageRepository,
+    private messageRepository: MessageRepository
   ) {}
 
   async createSession(sessionId: string, tenantId: string) {
@@ -90,7 +90,7 @@ export class BaileysRepository {
     sock: WASocket,
     jid: string,
     content: any,
-    quoted_id?: string,
+    quoted_id?: string
   ) {
     const quotedOptions = await this.buildQuotedMessage(quoted_id);
 
@@ -104,7 +104,7 @@ export class BaileysRepository {
     sessionId: string,
     number: string,
     text: string,
-    quoted_id?: string,
+    quoted_id?: string
   ) {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
@@ -124,7 +124,7 @@ export class BaileysRepository {
     number: string,
     url: string,
     caption?: string,
-    quoted_id?: string,
+    quoted_id?: string
   ) {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
@@ -148,7 +148,7 @@ export class BaileysRepository {
     number: string,
     url: string,
     caption?: string,
-    quoted_id?: string,
+    quoted_id?: string
   ) {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
@@ -170,7 +170,7 @@ export class BaileysRepository {
     sessionId: string,
     number: string,
     url: string,
-    quoted_id?: string,
+    quoted_id?: string
   ) {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
@@ -192,7 +192,7 @@ export class BaileysRepository {
     sessionId: string,
     number: string,
     url: string,
-    quoted_id?: string,
+    quoted_id?: string
   ) {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
@@ -217,7 +217,7 @@ export class BaileysRepository {
     url: string,
     fileName: string,
     mimetype: string,
-    quoted_id?: string,
+    quoted_id?: string
   ) {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
@@ -238,12 +238,37 @@ export class BaileysRepository {
   }
   async getContact(sessionId: string, number: string) {
     const sock = await this.getReadySocket(sessionId);
-    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+    const contact = await this.findContact(sessionId, number);
 
-    const result = await sock.onWhatsApp(jid);
+    if (!contact?.exists) return contact;
 
-    const contact = result?.[0];
+    let profilePicUrl: string;
 
+    try {
+      profilePicUrl =
+        (await sock.profilePictureUrl(contact.jid, "image")) || "";
+    } catch {
+      profilePicUrl = "";
+    }
+    const nameContact = await this.messageRepository.getNameUserBy(contact.jid);
+
+    return {
+      jid: contact.jid,
+      name: nameContact || "",
+      exists: contact.exists,
+      profilePicUrl,
+    };
+  }
+
+  private async findContact(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    let jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+    let result = await sock.onWhatsApp(jid);
+    let contact = result?.[0];
+    if (contact?.exists) return contact;
+    jid = `${number.replace(/\D/g, "").replace(/^(\d{4})9/, "$1")}@s.whatsapp.net`;
+    result = await sock.onWhatsApp(jid);
+    contact = result?.[0];
     if (!contact?.exists) {
       return {
         jid: "",
@@ -252,26 +277,11 @@ export class BaileysRepository {
         profilePicUrl: "",
       };
     }
-
-    let profilePicUrl: string;
-
-    try {
-      profilePicUrl = (await sock.profilePictureUrl(jid, "image")) || "";
-    } catch {
-      profilePicUrl = "";
-    }
-    const nameContact = await this.messageRepository.getNameUserBy(jid);
-
-    return {
-      jid,
-      name: nameContact || "",
-      exists: contact.exists,
-      profilePicUrl,
-    };
+    return contact;
   }
   async checkExists(
     sessionId: string,
-    number: string,
+    number: string
   ): Promise<{ exists: boolean }> {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
@@ -353,7 +363,7 @@ export class BaileysRepository {
   async deleteMessage(
     sessionId: string,
     number: string,
-    messageId: string,
+    messageId: string
     // participant?: string,
   ) {
     const sock = await this.getReadySocket(sessionId);
@@ -388,7 +398,7 @@ export class BaileysRepository {
     sessionId: string,
     number: string,
     messageId: string,
-    newText: string,
+    newText: string
   ) {
     const sock = await this.getReadySocket(sessionId);
 
