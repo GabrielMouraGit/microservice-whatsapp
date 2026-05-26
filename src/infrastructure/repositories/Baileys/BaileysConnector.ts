@@ -357,17 +357,9 @@ export class BaileysConnector {
       }
 
       const mimeType = media.mimetype || "application/octet-stream";
-
-      // nome original
-      let fileName = media.fileName;
-
-      // extensão
       const extension = mimeType.split("/")[1]?.split(";")[0] || "bin";
 
-      // fallback nome
-      if (!fileName) {
-        fileName = `${type}-${Date.now()}.${extension}`;
-      }
+      let fileName = `${type}-${Date.now()}.${extension}`; //media.fileName;
 
       // remove caracteres inválidos
       fileName = fileName.replace(/[^\w.\-]/g, "_");
@@ -475,20 +467,41 @@ export class BaileysConnector {
     });
   }
 
+  private destroySocket(sessionId: string) {
+    const sock = this.sockets.get(sessionId);
+
+    if (!sock) return;
+
+    try {
+      sock.ev.removeAllListeners("connection.update");
+      sock.ev.removeAllListeners("creds.update");
+      sock.ev.removeAllListeners("messages.upsert");
+      sock.ev.removeAllListeners("messages.update");
+
+      sock.ws.close();
+    } catch (err) {
+      console.log("erro destroy socket", err);
+    }
+
+    this.sockets.delete(sessionId);
+  }
+
   async regenerateQr(sessionId: string, tenantId: string) {
     try {
+      console.log("🔄 regenerando QR:", sessionId);
+
       const existing = this.sockets.get(sessionId);
 
-      if (!existing) {
-        return await this.connect(sessionId, tenantId);
+      // fecha socket antigo
+      if (existing) {
+        this.destroySocket(sessionId);
       }
 
-      const qr = await this.waitQr(sessionId);
+      // cria nova conexão usando MESMA sessão
+      return await this.connect(sessionId, tenantId);
+    } catch (err) {
+      console.log("[ERRO regenerateQr]", err);
 
-      return {
-        qr,
-      };
-    } catch {
       return {
         qr: "",
       };

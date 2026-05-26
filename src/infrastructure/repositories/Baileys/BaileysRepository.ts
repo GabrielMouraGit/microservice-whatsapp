@@ -20,7 +20,7 @@ export class BaileysRepository {
   }
   async newQrCode(sessionId: string, tenantId: string) {
     const { qr } = await this.connector.regenerateQr(sessionId, tenantId);
-
+    console.log("[newQrCode]");
     return { qr };
   }
 
