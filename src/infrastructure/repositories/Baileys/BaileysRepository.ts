@@ -284,9 +284,13 @@ export class BaileysRepository {
     return [];
   }
   async isConnected(sessionId: string) {
-    const sock = this.sessions.get(sessionId);
+    try {
+      const sock = this.sessions.get(sessionId);
 
-    return { connected: !!sock?.user };
+      return { connected: !!sock?.user };
+    } catch {
+      return { connected: false };
+    }
   }
   async getMyProfile(sessionId: string) {
     const sock = await this.getReadySocket(sessionId);
