@@ -9,3 +9,5 @@ POSTGRES_PASSWORD=randompassword
 POSTGRES_DB=mydb
 RABBITMQ_URL="amqp://admin:admin@host.docker.internal:5672"
 GATEWAY_SECRET_AUTH="token123"
+MICROSERVICE_STORAGE="http://172.20.10.5:8000"
+MICROSERVICE_STORAGE_TOKEN="token123"
