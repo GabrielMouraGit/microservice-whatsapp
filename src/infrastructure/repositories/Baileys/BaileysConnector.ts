@@ -2,6 +2,9 @@ import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   WASocket,
+  WAMessage,
+  downloadMediaMessage,
+  proto,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
@@ -15,6 +18,7 @@ import { AppEvents } from "container";
 import { DomainEventDispatcher } from "@/infrastructure/events/DomainEventDispatcher";
 import { EventLog } from "@/domain/aggregates/EventLog";
 import { ITypeSessionEvents } from "@/domain/events/ITypeSessionEvents";
+import { $config } from "@config/config";
 
 export class BaileysConnector {
   private qrResolvers = new Map<string, (qr: string) => void>();
@@ -41,11 +45,17 @@ export class BaileysConnector {
 
     this.sockets.set(sessionId, sock);
 
-    const qrPromise = this.waitQr(sessionId);
+    let qr = "";
+
+    try {
+      qr = await this.waitQr(sessionId);
+    } catch {
+      qr = "";
+    }
 
     return {
       sock,
-      qr: (await qrPromise) || "",
+      qr: qr,
     };
   }
 
@@ -87,6 +97,8 @@ export class BaileysConnector {
     sessionId: string,
     tenantId: string,
   ) {
+    sock.ev.removeAllListeners("connection.update");
+
     sock.ev.on("connection.update", async (update) => {
       const { connection, qr, lastDisconnect } = update;
 
@@ -176,6 +188,10 @@ export class BaileysConnector {
     tenantId: string,
     saveCreds: () => void,
   ) {
+    // remove antigos
+
+    sock.ev.removeAllListeners("creds.update");
+    sock.ev.removeAllListeners("messages.upsert");
     // salvar credenciais
     sock.ev.on("creds.update", saveCreds);
 
@@ -206,15 +222,15 @@ export class BaileysConnector {
 
           if (msg.key.fromMe) {
             console.log("📤 mensagem enviada");
-            // console.log(JSON.stringify(msg, null, 2));
           } else {
             console.log("📩 mensagem recebida");
-            // console.log(JSON.stringify(msg, null, 2));
           }
 
           log.log("messages.upsert.raw", msg);
 
-          const mapped = BaileysToWhatpyMapper.map(msg);
+          const { url } = await this.uploadMessageMedia(sock, msg, tenantId);
+
+          const mapped = BaileysToWhatpyMapper.map(msg, url);
 
           if (!mapped) continue;
 
@@ -232,6 +248,170 @@ export class BaileysConnector {
         this.dispatcher.dispatch(log);
       }
     });
+  }
+  private extractMediaMessage(message: proto.IMessage): ExtractedMedia {
+    if (!message) {
+      return null;
+    }
+
+    if (message.imageMessage) {
+      return {
+        type: "image",
+        media: message.imageMessage,
+      };
+    }
+
+    if (message.videoMessage) {
+      return {
+        type: "video",
+        media: message.videoMessage,
+      };
+    }
+
+    if (message.audioMessage) {
+      return {
+        type: message.audioMessage.ptt ? "voice" : "audio",
+
+        media: message.audioMessage,
+      };
+    }
+
+    if (message.documentMessage) {
+      return {
+        type: "document",
+        media: message.documentMessage,
+      };
+    }
+
+    if (message.stickerMessage) {
+      return {
+        type: "sticker",
+        media: message.stickerMessage,
+      };
+    }
+
+    // document with caption
+    if (message.documentWithCaptionMessage?.message) {
+      return this.extractMediaMessage(
+        message.documentWithCaptionMessage.message,
+      );
+    }
+
+    // view once
+    if (message.viewOnceMessage?.message) {
+      return this.extractMediaMessage(message.viewOnceMessage.message);
+    }
+
+    // view once v2
+    if (message.viewOnceMessageV2?.message) {
+      return this.extractMediaMessage(message.viewOnceMessageV2.message);
+    }
+
+    // ephemeral
+    if (message.ephemeralMessage?.message) {
+      return this.extractMediaMessage(message.ephemeralMessage.message);
+    }
+
+    return null;
+  }
+
+  private async uploadMessageMedia(
+    sock: WASocket,
+    msg: WAMessage,
+    tenant_id: string,
+  ): Promise<{ url: string }> {
+    try {
+      console.log("tenant_id---", tenant_id);
+      if (!msg.message) {
+        return { url: "" };
+      }
+
+      if (msg.message?.viewOnceMessage || msg.message?.viewOnceMessageV2) {
+        return { url: "" };
+      }
+
+      const extracted = this.extractMediaMessage(msg.message);
+
+      if (!extracted) {
+        return { url: "" };
+      }
+
+      const { media, type } = extracted;
+
+      if (!media.mediaKey || !media.directPath) {
+        return { url: "" };
+      }
+
+      const buffer = await downloadMediaMessage(
+        msg,
+        "buffer",
+        {},
+        {
+          logger: pino({ level: "silent" }),
+          reuploadRequest: sock.updateMediaMessage,
+        },
+      );
+
+      if (!buffer) {
+        return { url: "" };
+      }
+
+      const mimeType = media.mimetype || "application/octet-stream";
+
+      // nome original
+      let fileName = media.fileName || media.caption || media.displayName;
+
+      // extensão
+      const extension = mimeType.split("/")[1]?.split(";")[0] || "bin";
+
+      // fallback nome
+      if (!fileName) {
+        fileName = `${type}-${Date.now()}.${extension}`;
+      }
+
+      // remove caracteres inválidos
+      fileName = fileName.replace(/[^\w.\-]/g, "_");
+
+      const formData = new FormData();
+
+      formData.append(
+        "file",
+        new Blob([new Uint8Array(buffer)], {
+          type: mimeType,
+        }),
+        fileName,
+      );
+
+      formData.append("path", `public/${tenant_id}/whatsapp`);
+
+      const response = await fetch(
+        `${$config.MICROSERVICE_STORAGE}/storage/api/v1/file/add-item`,
+        {
+          method: "POST",
+          headers: {
+            "x-backend-token": $config.MICROSERVICE_STORAGE_TOKEN,
+            "x-tenant-id": tenant_id,
+          },
+          body: formData,
+        },
+      );
+      console.log("[response] *-----", response);
+      if (!response.ok) {
+        throw new Error(`erro upload: ${response.status}`);
+      }
+
+      const uploaded = await response.json();
+
+      return {
+        url: uploaded.url,
+      };
+    } catch (err) {
+      console.error("erro upload media", err);
+
+      return {
+        url: "",
+      };
+    }
   }
 
   async logout(sessionId: string) {
@@ -279,21 +459,49 @@ export class BaileysConnector {
   getSocket(sessionId: string) {
     return this.sockets.get(sessionId);
   }
-  private waitQr(sessionId: string) {
-    return new Promise<string>((resolve) => {
-      this.qrResolvers.set(sessionId, resolve);
+  private waitQr(sessionId: string, timeout = 30000) {
+    return new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.qrResolvers.delete(sessionId);
+
+        reject(new Error("QR timeout"));
+      }, timeout);
+
+      this.qrResolvers.set(sessionId, (qr) => {
+        clearTimeout(timer);
+
+        resolve(qr);
+      });
     });
   }
 
   async regenerateQr(sessionId: string, tenantId: string) {
-    const existing = this.sockets.get(sessionId);
+    try {
+      const existing = this.sockets.get(sessionId);
 
-    if (!existing) {
-      return await this.connect(sessionId, tenantId);
+      if (!existing) {
+        return await this.connect(sessionId, tenantId);
+      }
+
+      const qr = await this.waitQr(sessionId);
+
+      return {
+        qr,
+      };
+    } catch {
+      return {
+        qr: "",
+      };
     }
-
-    const qr = await this.waitQr(sessionId);
-
-    return { qr };
   }
 }
+type ExtractedMedia = {
+  type: "image" | "video" | "audio" | "voice" | "document" | "sticker";
+
+  media:
+    | proto.Message.IImageMessage
+    | proto.Message.IVideoMessage
+    | proto.Message.IAudioMessage
+    | proto.Message.IDocumentMessage
+    | proto.Message.IStickerMessage;
+} | null;
