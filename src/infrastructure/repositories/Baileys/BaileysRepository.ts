@@ -238,9 +238,22 @@ export class BaileysRepository {
   }
   async getContact(sessionId: string, number: string) {
     const sock = await this.getReadySocket(sessionId);
-    const contact = await this.findContact(sessionId, number);
+    let contact = await this.findContact(sessionId, number);
 
-    if (!contact?.exists) return contact;
+    if (!contact?.exists) {
+      contact = await this.findContact(
+        sessionId,
+        number.replace(/^(\d{4})9/, "$1")
+      );
+      if (!contact?.exists) {
+        return {
+          jid: "",
+          name: "",
+          exists: false,
+          profilePicUrl: "",
+        };
+      }
+    }
 
     let profilePicUrl: string;
 
@@ -262,21 +275,9 @@ export class BaileysRepository {
 
   private async findContact(sessionId: string, number: string) {
     const sock = await this.getReadySocket(sessionId);
-    let jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
-    let result = await sock.onWhatsApp(jid);
-    let contact = result?.[0];
-    if (contact?.exists) return contact;
-    jid = `${number.replace(/\D/g, "").replace(/^(\d{4})9/, "$1")}@s.whatsapp.net`;
-    result = await sock.onWhatsApp(jid);
-    contact = result?.[0];
-    if (!contact?.exists) {
-      return {
-        jid: "",
-        name: "",
-        exists: false,
-        profilePicUrl: "",
-      };
-    }
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+    const result = await sock.onWhatsApp(jid);
+    const contact = result?.[0];
     return contact;
   }
   async checkExists(
