@@ -23,7 +23,7 @@ services:
       - .:/app
       - ./node_modules:/app/node_modules
     depends_on:
-      - db
+      - whatsapp-db
     command: >
       sh -c "
       npm run build &&
@@ -32,7 +32,7 @@ services:
       npm run start
       "
 
-  db:
+  whatsapp-db:
     image: postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -40,10 +40,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     restart: unless-stopped
     volumes:
-      - microservice-whatsapp-dev-postgresql:/var/lib/postgresql/data
+      - microservice-whatsapp-postgresql:/var/lib/postgresql/data
 
 volumes:
-  microservice-whatsapp-dev-postgresql:
+  microservice-whatsapp-postgresql:
 
 networks:
   default:
