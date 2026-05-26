@@ -15,9 +15,9 @@ import { WAMessage, proto } from "@whiskeysockets/baileys";
 import { v4 } from "uuid";
 
 export class BaileysToWhatpyMapper {
-  static map(messages: WAMessage): WebhookWhatsapp | null {
+  static map(messages: WAMessage, url?: string): WebhookWhatsapp | null {
     console.log("[ORIGINAL MESSAGE]", messages);
-    const mappedMessages = this.buildMessage(messages);
+    const mappedMessages = this.buildMessage(messages, url);
     if (!mappedMessages) {
       throw new Error(
         "Failed to map message - unsupported type or missing content",
@@ -34,7 +34,10 @@ export class BaileysToWhatpyMapper {
     };
   }
 
-  private static buildMessage(msg: WAMessage): WhatsAppMessage | null {
+  private static buildMessage(
+    msg: WAMessage,
+    url?: string,
+  ): WhatsAppMessage | null {
     const base = this.buildBase(msg);
 
     if (!msg.message) return null;
@@ -58,29 +61,30 @@ export class BaileysToWhatpyMapper {
       };
     }
 
-    if (m.imageMessage) {
+    if (m.imageMessage && url) {
       return {
         ...base,
         type: "image",
-        image: this.buildImageMessage(m.imageMessage),
+        image: this.buildImageMessage(m.imageMessage, url),
         context: this.buildContext(m.imageMessage.contextInfo),
       };
     }
 
-    if (m.documentMessage) {
+    if (m.documentMessage && url) {
       return {
         ...base,
         type: "document",
-        document: this.buildDocumentMessage(m.documentMessage),
+        document: this.buildDocumentMessage(m.documentMessage, url),
         context: this.buildContext(m.documentMessage.contextInfo),
       };
     }
-    if (m?.documentWithCaptionMessage?.message?.documentMessage) {
+    if (m?.documentWithCaptionMessage?.message?.documentMessage && url) {
       return {
         ...base,
         type: "document",
         document: this.buildDocumentMessage(
           m?.documentWithCaptionMessage?.message?.documentMessage,
+          url,
         ),
         context: this.buildContext(
           m?.documentWithCaptionMessage?.message?.documentMessage?.contextInfo,
@@ -88,38 +92,38 @@ export class BaileysToWhatpyMapper {
       };
     }
 
-    if (m.videoMessage) {
+    if (m.videoMessage && url) {
       return {
         ...base,
         type: "video",
-        video: this.buildVideoMessage(m.videoMessage),
+        video: this.buildVideoMessage(m.videoMessage, url),
         context: this.buildContext(m.videoMessage.contextInfo),
       };
     }
 
-    if (m.audioMessage?.ptt === true) {
+    if (m.audioMessage?.ptt === true && url) {
       return {
         ...base,
         type: "voice",
-        voice: this.buildVoiceMessage(m.audioMessage),
+        voice: this.buildVoiceMessage(m.audioMessage, url),
         context: this.buildContext(m.audioMessage.contextInfo),
       };
     }
 
-    if (m.audioMessage) {
+    if (m.audioMessage && url) {
       return {
         ...base,
         type: "audio",
-        audio: this.buildAudioMessage(m.audioMessage),
+        audio: this.buildAudioMessage(m.audioMessage, url),
         context: this.buildContext(m.audioMessage.contextInfo),
       };
     }
 
-    if (m.stickerMessage) {
+    if (m.stickerMessage && url) {
       return {
         ...base,
         type: "sticker",
-        sticker: this.buildStickerMessage(m.stickerMessage),
+        sticker: this.buildStickerMessage(m.stickerMessage, url),
         context: this.buildContext(m.stickerMessage.contextInfo),
       };
     }
@@ -129,6 +133,7 @@ export class BaileysToWhatpyMapper {
 
   private static buildStickerMessage(
     sticker: proto.Message.IStickerMessage,
+    url: string,
   ): WhatsAppMessageSticker {
     return {
       id: v4(),
@@ -136,7 +141,7 @@ export class BaileysToWhatpyMapper {
       file_size: Number(sticker.fileLength || 0),
       sha256:
         this.normalizeBase64(sticker.fileSha256 || sticker.fileEncSha256) || "",
-      link: "https://admin.cnnbrasil.com.br/wp-content/uploads/sites/12/2023/03/image-1.png?w=849&h=477&crop=0", //sticker.url || "",
+      link: url!, //sticker.url || "",
       is_animated: !!sticker.isAnimated,
       is_ai_sticker: !!sticker.isAiSticker,
       is_lottie: !!sticker.isLottie,
@@ -150,6 +155,7 @@ export class BaileysToWhatpyMapper {
 
   private static buildAudioMessage(
     audio: proto.Message.IAudioMessage,
+    url: string,
   ): WhatsAppMessageAudio {
     return {
       id: v4(),
@@ -157,13 +163,14 @@ export class BaileysToWhatpyMapper {
       file_size: Number(audio.fileLength || 0),
       sha256:
         this.normalizeBase64(audio.fileSha256 || audio.fileEncSha256) || "",
-      link: "https://cdn.pixabay.com/download/audio/2023/06/22/audio_70ac38c7c8.mp3?filename=olenchic--154909.mp3", // audio.url || "",
+      link: url, // audio.url || "",
       seconds: audio.seconds || 0,
     };
   }
 
   private static buildVoiceMessage(
     audio: proto.Message.IAudioMessage,
+    url: string,
   ): WhatsAppMessageVoice {
     return {
       id: v4(),
@@ -171,13 +178,14 @@ export class BaileysToWhatpyMapper {
       file_size: Number(audio.fileLength || 0),
       sha256:
         this.normalizeBase64(audio.fileSha256 || audio.fileEncSha256) || "",
-      link: "https://cdn.pixabay.com/download/audio/2023/06/22/audio_70ac38c7c8.mp3?filename=olenchic--154909.mp3", // audio.url || "",
+      link: url, // audio.url || "",
       seconds: audio.seconds || 0,
     };
   }
 
   private static buildImageMessage(
     image: proto.Message.IImageMessage,
+    url: string,
   ): WhatsAppMessageImage {
     return {
       id: v4(),
@@ -188,20 +196,21 @@ export class BaileysToWhatpyMapper {
       caption: image.caption || "",
       width: image.width || 0,
       height: image.height || 0,
-      link: "https://admin.cnnbrasil.com.br/wp-content/uploads/sites/12/2023/03/image-1.png?w=849&h=477&crop=0", // image.url || "",
+      link: url, // image.url || "",
       preview: `data:${image.mimetype};base64,${this.normalizeBase64(image.jpegThumbnail)}`,
     };
   }
 
   private static buildDocumentMessage(
     doc: proto.Message.IDocumentMessage,
+    url: string,
   ): WhatsAppMessageDocument {
     return {
       id: v4(),
       mime_type: doc.mimetype || "",
       file_size: Number(doc.fileLength || 0),
       sha256: this.normalizeBase64(doc.fileSha256 || doc.fileEncSha256) || "",
-      link: "https://eppg.fgv.br/sites/default/files/teste.pdf", //doc.url || "",
+      link: url, //doc.url || "",
       file_name: doc.fileName || doc.title || "",
       filename: doc.fileName || doc.title || "",
       caption: doc.caption || "",
@@ -210,6 +219,7 @@ export class BaileysToWhatpyMapper {
 
   private static buildVideoMessage(
     video: proto.Message.IVideoMessage,
+    url: string,
   ): WhatsAppMessageVideo {
     return {
       id: v4(),
@@ -220,7 +230,7 @@ export class BaileysToWhatpyMapper {
       width: video.width || 0,
       height: video.height || 0,
       seconds: video.seconds || 0,
-      link: "https://videos.pexels.com/video-files/6802247/6802247-uhd_3840_2160_30fps.mp4", // video.url || "",
+      link: url, // video.url || "",
       caption: video.caption || "",
       preview: video.jpegThumbnail
         ? `data:${video.mimetype};base64,${this.normalizeBase64(
