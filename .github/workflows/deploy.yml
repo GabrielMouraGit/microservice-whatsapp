@@ -33,19 +33,19 @@ jobs:
             if [ -d "$CURRENT_DIR" ]; then
               echo "🌀 Versão atual encontrada, preparando backup antigo..."
 
-              # Remove BACKEND-old se já existir
+              # Remove APP-old se já existir
               if [ -d "$OLD_DIR" ]; then
-                echo "🗑️ Removendo versão anterior (BACKEND-old)..."
+                echo "🗑️ Removendo versão anterior (APP-old)..."
                 rm -rf "$OLD_DIR"
               fi
 
               # Renomeia a atual para old
-              echo "📦 Movendo BACKEND-current -> BACKEND-old"
+              echo "📦 Movendo APP-current -> APP-old"
               mv "$CURRENT_DIR" "$OLD_DIR"
             fi
 
             # 🔧 Clonar o repositório no CURRENT_DIR
-            echo "📁 Clonando repositório para BACKEND-current..."
+            echo "📁 Clonando repositório para APP-current..."
             git clone https://GabrielMouraGit:${{ secrets.GIT_TOKEN }}@github.com/GabrielMouraGit/microservice-whatsapp.git "$CURRENT_DIR"
 
             # Entrar no diretório clonado
