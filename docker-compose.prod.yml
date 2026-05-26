@@ -11,12 +11,10 @@ services:
       RABBITMQ_URL: ${RABBITMQ_URL}
       GATEWAY_SECRET_AUTH: ${GATEWAY_SECRET_AUTH}
       MICROSERVICE_STORAGE: ${MICROSERVICE_STORAGE}
-      MICROSERVICE_STORAGE_TOKEN: ${MICROSERVICE_STORAGE_TOKEN}cd ..
+      MICROSERVICE_STORAGE_TOKEN: ${MICROSERVICE_STORAGE_TOKEN}
 
     restart: unless-stopped
-    volumes:
-      - .:/app
-      - ./node_modules:/app/node_modules
+
     depends_on:
       - whatsapp-db
     command: >
