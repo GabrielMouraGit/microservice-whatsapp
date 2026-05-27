@@ -14,7 +14,8 @@ services:
       MICROSERVICE_STORAGE_TOKEN: ${MICROSERVICE_STORAGE_TOKEN}
 
     restart: unless-stopped
-
+    volumes:
+      - microservice-whatsapp-session:/app/session
     depends_on:
       - whatsapp-db
     command: >
@@ -37,6 +38,7 @@ services:
 
 volumes:
   microservice-whatsapp-postgresql:
+  microservice-whatsapp-session:
 
 networks:
   default:
