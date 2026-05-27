@@ -97,8 +97,6 @@ export class BaileysConnector {
     sessionId: string,
     tenantId: string,
   ) {
-    sock.ev.removeAllListeners("connection.update");
-
     sock.ev.on("connection.update", async (update) => {
       const { connection, qr, lastDisconnect } = update;
 
@@ -139,6 +137,31 @@ export class BaileysConnector {
 
         console.log("status:", statusCode);
 
+        // NÃO reconectar aqui
+        if (statusCode === 515) {
+          if (this.reconnecting.has(sessionId)) {
+            return;
+          }
+
+          this.reconnecting.add(sessionId);
+
+          console.log("♻️ reiniciando stream");
+
+          this.sockets.delete(sessionId);
+
+          setTimeout(async () => {
+            try {
+              await this.connect(sessionId, tenantId);
+            } catch (err) {
+              console.log("erro reconnect 515", err);
+            } finally {
+              this.reconnecting.delete(sessionId);
+            }
+          }, 1000);
+
+          return;
+        }
+
         // SEMPRE remove o socket antigo
         const existing = this.sockets.get(sessionId);
 
@@ -163,7 +186,12 @@ export class BaileysConnector {
         // sessão inválida → precisa limpar tudo
         if (statusCode === 401) {
           console.log("⚠️ sessão inválida → resetando");
+
           await this.logout(sessionId);
+
+          this.reconnecting.delete(sessionId);
+
+          return;
         }
 
         console.log("🔄 tentando reconectar...");
@@ -190,8 +218,6 @@ export class BaileysConnector {
   ) {
     // remove antigos
 
-    sock.ev.removeAllListeners("creds.update");
-    sock.ev.removeAllListeners("messages.upsert");
     // salvar credenciais
     sock.ev.on("creds.update", saveCreds);
 
@@ -410,35 +436,28 @@ export class BaileysConnector {
     try {
       const sock = this.sockets.get(sessionId);
 
-      // 1. encerra conexão se existir
       if (sock) {
         try {
-          await sock.logout(); // invalida no WhatsApp
-        } catch (err) {
-          console.log("⚠️ erro no logout (ignorado):", err);
-        }
-
-        try {
-          sock.ws.close(); // garante fechamento
-        } catch (err) {
-          console.log("⚠️ erro ao fechar ws:", err);
+          await sock.logout();
+        } catch {
+          console.log("ERRO");
         }
       }
 
-      // 2. remove da memória
       this.sockets.delete(sessionId);
 
-      // 3. remove arquivos da sessão
       const sessionPath = path.resolve(`./session/${sessionId}`);
 
       if (fs.existsSync(sessionPath)) {
-        fs.rmSync(sessionPath, { recursive: true, force: true });
-        console.log("🧹 sessão removida do disco:", sessionId);
+        fs.rmSync(sessionPath, {
+          recursive: true,
+          force: true,
+        });
       }
 
       console.log("logout concluído:", sessionId);
     } catch (error) {
-      console.error("❌ erro ao fazer logout:", error);
+      console.error(error);
 
       throw new DomainError("Erro ao fazer logout");
     }
@@ -467,37 +486,14 @@ export class BaileysConnector {
     });
   }
 
-  private destroySocket(sessionId: string) {
-    const sock = this.sockets.get(sessionId);
-
-    if (!sock) return;
-
-    try {
-      sock.ev.removeAllListeners("connection.update");
-      sock.ev.removeAllListeners("creds.update");
-      sock.ev.removeAllListeners("messages.upsert");
-      sock.ev.removeAllListeners("messages.update");
-
-      sock.ws.close();
-    } catch (err) {
-      console.log("erro destroy socket", err);
-    }
-
-    this.sockets.delete(sessionId);
-  }
-
   async regenerateQr(sessionId: string, tenantId: string) {
     try {
       console.log("🔄 regenerando QR:", sessionId);
 
-      const existing = this.sockets.get(sessionId);
+      // remove sessão atual completamente
+      await this.logout(sessionId);
 
-      // fecha socket antigo
-      if (existing) {
-        this.destroySocket(sessionId);
-      }
-
-      // cria nova conexão usando MESMA sessão
+      // cria nova sessão limpa
       return await this.connect(sessionId, tenantId);
     } catch (err) {
       console.log("[ERRO regenerateQr]", err);
