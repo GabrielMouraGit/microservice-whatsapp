@@ -115,6 +115,8 @@ export class MessageRepository implements IMessageRepository {
   ): Promise<void> {
     try {
       const dto = message.toDTO();
+      const existsMessage = await this.getMessagesById(dto.id, tenant_id);
+      if (existsMessage) return;
 
       await $prismaClient.message.create({
         data: {
