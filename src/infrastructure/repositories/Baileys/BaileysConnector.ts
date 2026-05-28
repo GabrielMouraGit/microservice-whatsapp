@@ -228,6 +228,8 @@ export class BaileysConnector {
     sock.ev.on("messages.upsert", async (m) => {
       const log = new EventLog(sessionId, tenantId);
       try {
+        this.randomDelay(600, 3000); // teste resolver com calma depois
+
         //replace | remove | prepend
         if (!["notify", "append"].includes(m.type)) {
           return;
@@ -501,6 +503,15 @@ export class BaileysConnector {
         qr: "",
       };
     }
+  }
+
+  private async sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async randomDelay(min = 200, max = 2000) {
+    const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+    await this.sleep(delay);
   }
 }
 type ExtractedMedia = {
