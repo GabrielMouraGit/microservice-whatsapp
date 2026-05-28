@@ -177,7 +177,7 @@ export class BaileysRepository {
 
     const content = {
       audio: { url },
-      mimetype: "audio/mp4",
+      mimetype: "audio/mp3",
     };
 
     const result = await this.sendMessageCore(sock, jid, content, quoted_id);
@@ -199,7 +199,7 @@ export class BaileysRepository {
 
     const content = {
       audio: { url },
-      mimetype: "audio/mp4",
+      mimetype: "audio/mp3",
       ptt: true,
     };
 
