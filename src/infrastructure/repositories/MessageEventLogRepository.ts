@@ -15,6 +15,11 @@ export class MessageEventLogRepository implements IMessageEventLogRepository {
       return oldMessage;
     }
 
+    const oldMessage2 = await this.findByMessageId(data.id);
+    if (oldMessage2) {
+      return oldMessage2;
+    }
+
     const result = await $prismaClient.messageEventLog.create({
       data: {
         id: data.id,

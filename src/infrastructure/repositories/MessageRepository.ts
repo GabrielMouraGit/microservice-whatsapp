@@ -115,11 +115,12 @@ export class MessageRepository implements IMessageRepository {
   ): Promise<void> {
     try {
       const dto = message.toDTO();
-      const existsMessage = await this.getMessagesById(dto.id, tenant_id);
-      if (existsMessage) return;
 
-      await $prismaClient.message.create({
-        data: {
+      await $prismaClient.message.upsert({
+        where: {
+          id: dto.id,
+        },
+        create: {
           id: dto.id,
           type: dto.type as MessageType,
           from: dto.from,
@@ -198,6 +199,7 @@ export class MessageRepository implements IMessageRepository {
               }
             : undefined,
         },
+        update: {}, // ou atualiza campos se quiser
       });
     } catch (err) {
       console.error("ERRO [saveMessage]", err);
