@@ -16,7 +16,6 @@ import { v4 } from "uuid";
 
 export class BaileysToWhatpyMapper {
   static map(messages: WAMessage, url?: string): WebhookWhatsapp | null {
-    console.log("[ORIGINAL MESSAGE]", messages);
     const mappedMessages = this.buildMessage(messages, url);
     if (!mappedMessages) {
       throw new Error(

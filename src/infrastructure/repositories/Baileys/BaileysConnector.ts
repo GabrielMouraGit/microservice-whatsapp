@@ -347,7 +347,6 @@ export class BaileysConnector {
     tenant_id: string,
   ): Promise<{ url: string }> {
     try {
-      console.log("tenant_id---", tenant_id);
       if (!msg.message) {
         return { url: "" };
       }
