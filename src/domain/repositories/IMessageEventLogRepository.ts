@@ -14,7 +14,7 @@ export interface IMessageEventLogRepository {
   markAsFailed(id: string): Promise<void>;
 
   findPending(limit?: number): Promise<MessageEventLogOutput[]>;
-
+  getAllMessagesLogs(): Promise<MessageEventLogOutput[]>;
   findById(id: string): Promise<MessageEventLogOutput | null>;
   findByMessageId(id: string): Promise<MessageEventLogOutput | null>;
 }

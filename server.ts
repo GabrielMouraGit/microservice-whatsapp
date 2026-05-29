@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { baileysConnector } from "container";
+import { baileysConnector, reSyncAllMessagensUseCase } from "container";
 import HandlerRequest from "@/interfaces/plugins/HandlerRequest";
 import HandlerAuth from "@/interfaces/plugins/HandlerAuth";
 import { SessionRoutes } from "@/interfaces/routes/SessionRoutes";
@@ -38,6 +38,13 @@ fastify.register(TenantRoutes, { prefix: PREFIX_SERVICE });
 
 fastify.get(`${PREFIX_SERVICE}/public/api/v1/status`, async () => {
   return { status: true };
+});
+
+fastify.get(`${PREFIX_SERVICE}/public/api/v1/resyncall`, async () => {
+  reSyncAllMessagensUseCase.execute().catch((err) => {
+    console.error("Erro ao re-sincronizar mensagens:", err);
+  });
+  return { resync: true };
 });
 
 async function start() {

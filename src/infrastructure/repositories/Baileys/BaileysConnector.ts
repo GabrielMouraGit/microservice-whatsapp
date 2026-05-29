@@ -341,7 +341,7 @@ export class BaileysConnector {
     return null;
   }
 
-  private async uploadMessageMedia(
+  async uploadMessageMedia(
     sock: WASocket,
     msg: WAMessage,
     tenant_id: string,
@@ -466,8 +466,8 @@ export class BaileysConnector {
     return !!this.sockets.get(sessionId)?.user;
   }
 
-  getSocket(sessionId: string) {
-    return this.sockets.get(sessionId);
+  getSocket(sessionId: string): WASocket | null {
+    return this.sockets.get(sessionId) || null;
   }
   private waitQr(sessionId: string, timeout = 30000) {
     return new Promise<string>((resolve, reject) => {

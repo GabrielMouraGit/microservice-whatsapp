@@ -34,6 +34,12 @@ export class MessageEventLogRepository implements IMessageEventLogRepository {
     return this.mapToOutput(result);
   }
 
+  async getAllMessagesLogs(): Promise<MessageEventLogOutput[]> {
+    const result = await $prismaClient.messageEventLog.findMany();
+
+    return result.map((m) => this.mapToOutput(m));
+  }
+
   async markAsProcessed(id: string): Promise<void> {
     await $prismaClient.messageEventLog.update({
       where: { id },
