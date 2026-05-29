@@ -14,7 +14,9 @@ export class ReSyncAllMessagensUseCase {
   async execute() {
     const allMessagesLogs =
       await this.messageEventLogRepository.getAllMessagesLogs();
-
+    console.log(
+      `Total de mensagens a re-sincronizar: ${allMessagesLogs.length}`,
+    );
     for (const msg of allMessagesLogs) {
       if (!msg?.payload || !msg.tenantId || !msg.sessionId) continue;
 
