@@ -18,6 +18,9 @@ export class ReSyncAllMessagensUseCase {
     for (const msg of allMessagesLogs) {
       if (!msg?.payload || !msg.tenantId || !msg.sessionId) continue;
 
+      console.log(
+        `Re-sincronizando mensagem: ${msg.id} - Sessão: ${msg.sessionId} - Início: ${new Date().toISOString()}`,
+      );
       const messagePayload = msg.payload as WAMessage;
       const sock = await this.baileysConnector.getSocket(msg.sessionId);
       if (sock) continue;
@@ -37,6 +40,9 @@ export class ReSyncAllMessagensUseCase {
         tenantId: msg.tenantId,
         data: mapped,
       });
+      console.log(
+        `Re-sincronizando mensagem: ${msg.id} - Sessão: ${msg.sessionId} - Fim: ${new Date().toISOString()}`,
+      );
     }
   }
 }
