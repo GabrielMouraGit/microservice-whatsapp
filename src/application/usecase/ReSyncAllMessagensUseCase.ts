@@ -18,33 +18,43 @@ export class ReSyncAllMessagensUseCase {
       `Total de mensagens a re-sincronizar: ${allMessagesLogs.length}`,
     );
     for (const msg of allMessagesLogs) {
-      if (!msg?.payload || !msg.tenantId || !msg.sessionId) continue;
+      try {
+        if (!msg?.payload || !msg.tenantId || !msg.sessionId) continue;
 
-      console.log(
-        `Re-sincronizando mensagem: ${msg.id} - Sessão: ${msg.sessionId} - Início: ${new Date().toISOString()}`,
-      );
-      const messagePayload = msg.payload as WAMessage;
-      const sock = await this.baileysConnector.getSocket(msg.sessionId);
-      if (sock) continue;
+        console.log(
+          `Re-sincronizando mensagem: ${msg.id} - Sessão: ${msg.sessionId} - Início: ${new Date().toISOString()}`,
+        );
+        const messagePayload = msg.payload as WAMessage;
 
-      const { url } = await this.baileysConnector.uploadMessageMedia(
-        sock,
-        msg,
-        msg.tenantId,
-      );
+        const sock = await this.baileysConnector.getSocket(msg.sessionId);
+        if (sock) {
+          console.log("Nao tem socker");
+        }
 
-      const mapped = BaileysToWhatpyMapper.map(messagePayload, url);
+        const { url } = await this.baileysConnector.uploadMessageMedia(
+          sock,
+          msg,
+          msg.tenantId,
+        );
 
-      if (!mapped) continue;
+        const mapped = BaileysToWhatpyMapper.map(messagePayload, url);
 
-      await this.events.emit("message.received", {
-        sessionId: msg.sessionId,
-        tenantId: msg.tenantId,
-        data: mapped,
-      });
-      console.log(
-        `Re-sincronizando mensagem: ${msg.id} - Sessão: ${msg.sessionId} - Fim: ${new Date().toISOString()}`,
-      );
+        if (!mapped) {
+          console.log("Nao tem mapped");
+        }
+
+        await this.events.emit("message.received", {
+          sessionId: msg.sessionId,
+          tenantId: msg.tenantId,
+          data: mapped,
+        });
+
+        console.log(
+          `Re-sincronizando mensagem: ${msg.id} - Sessão: ${msg.sessionId} - Fim: ${new Date().toISOString()}`,
+        );
+      } catch (err) {
+        console.error(`Erro ao re-sincronizar mensagem ${msg.id}:`, err);
+      }
     }
   }
 }
