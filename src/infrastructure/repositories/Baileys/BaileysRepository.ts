@@ -1,6 +1,10 @@
 import { SessionManager } from "../SessionManager";
 import { BaileysConnector } from "./BaileysConnector";
-import { WAMessage, WASocket } from "@whiskeysockets/baileys";
+import {
+  AnyMessageContent,
+  WAMessage,
+  WASocket,
+} from "@whiskeysockets/baileys";
 import { MessageEventLogRepository } from "../MessageEventLogRepository";
 import { MessageRepository } from "../MessageRepository";
 
@@ -89,7 +93,7 @@ export class BaileysRepository {
   private async sendMessageCore(
     sock: WASocket,
     jid: string,
-    content: any,
+    content: AnyMessageContent,
     quoted_id?: string,
   ) {
     const quotedOptions = await this.buildQuotedMessage(quoted_id);
@@ -123,6 +127,7 @@ export class BaileysRepository {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     caption?: string,
     quoted_id?: string,
   ) {
@@ -132,6 +137,7 @@ export class BaileysRepository {
     const content = {
       image: { url },
       caption,
+      mimetype,
     };
 
     const result = await this.sendMessageCore(sock, jid, content, quoted_id);
@@ -147,6 +153,7 @@ export class BaileysRepository {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     caption?: string,
     quoted_id?: string,
   ) {
@@ -156,6 +163,7 @@ export class BaileysRepository {
     const content = {
       video: { url },
       caption,
+      mimetype,
     };
 
     const result = await this.sendMessageCore(sock, jid, content, quoted_id);
@@ -170,6 +178,7 @@ export class BaileysRepository {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     quoted_id?: string,
   ) {
     const sock = await this.getReadySocket(sessionId);
@@ -177,7 +186,7 @@ export class BaileysRepository {
 
     const content = {
       audio: { url },
-      mimetype: "audio/mp4",
+      mimetype,
     };
 
     const result = await this.sendMessageCore(sock, jid, content, quoted_id);
@@ -192,6 +201,7 @@ export class BaileysRepository {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     quoted_id?: string,
   ) {
     const sock = await this.getReadySocket(sessionId);
@@ -199,7 +209,7 @@ export class BaileysRepository {
 
     const content = {
       audio: { url },
-      mimetype: "audio/mp4",
+      mimetype,
       ptt: true,
     };
 
@@ -291,6 +301,7 @@ export class BaileysRepository {
 
     return { exists: result?.[0]?.exists ?? false };
   }
+
   async getContacts() {
     return [];
   }
@@ -391,8 +402,10 @@ export class BaileysRepository {
         success: true,
         message_id: messageId,
       };
-    } catch (err: any) {
-      throw new Error(`Failed to delete message: ${err?.message || err}`);
+    } catch (err: Error | unknown) {
+      throw new Error(
+        `Failed to delete message: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
   async editMessage(
@@ -406,8 +419,9 @@ export class BaileysRepository {
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
 
     try {
-      const message =
-        await this.messageEventLogRepository.findByMessageId(messageId);
+      const message = (await this.messageEventLogRepository.findByMessageId(
+        messageId,
+      )) as { payload: WAMessage } | null;
 
       if (!message) {
         throw new Error("Message not found");
@@ -435,8 +449,10 @@ export class BaileysRepository {
         message_id: result.key.id,
         edited_message_id: messageId,
       };
-    } catch (err: any) {
-      throw new Error(`Failed to edit message: ${err?.message || err}`);
+    } catch (err: Error | unknown) {
+      throw new Error(
+        `Failed to edit message: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 }

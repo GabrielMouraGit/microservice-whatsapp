@@ -387,7 +387,7 @@ export class BaileysConnector {
       let fileName = `${type}-${Date.now()}.${extension}`; //media.fileName;
 
       // remove caracteres inválidos
-      fileName = fileName.replace(/[^\w.\-]/g, "_");
+      fileName = fileName.replace(/[^\w.-]/g, "_");
 
       const formData = new FormData();
 

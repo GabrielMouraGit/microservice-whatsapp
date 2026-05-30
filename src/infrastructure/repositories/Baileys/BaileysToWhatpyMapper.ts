@@ -16,7 +16,10 @@ import { v4 } from "uuid";
 
 export class BaileysToWhatpyMapper {
   static map(messages: WAMessage, url?: string): WebhookWhatsapp | null {
-    const mappedMessages = this.buildMessage(messages, url);
+    const msgWithTimestamp = messages as WAMessage & {
+      messageTimestamp?: number;
+    };
+    const mappedMessages = this.buildMessage(msgWithTimestamp, url);
     if (!mappedMessages) {
       throw new Error(
         "Failed to map message - unsupported type or missing content",
@@ -34,7 +37,7 @@ export class BaileysToWhatpyMapper {
   }
 
   private static buildMessage(
-    msg: WAMessage,
+    msg: WAMessage & { messageTimestamp?: number },
     url?: string,
   ): WhatsAppMessage | null {
     const base = this.buildBase(msg);
@@ -239,12 +242,14 @@ export class BaileysToWhatpyMapper {
     };
   }
 
-  private static buildBase(msg: WAMessage): Omit<WhatsAppMessage, "type"> {
+  private static buildBase(
+    msg: WAMessage & { messageTimestamp?: number },
+  ): Omit<WhatsAppMessage, "type"> {
     return {
       id: msg.key.id || "",
       from_me: msg.key.fromMe || false,
       chat_id: msg.key.remoteJidAlt || msg.key.remoteJid || "",
-      timestamp: Number(new Date(msg.messageTimestamp * 1000)),
+      timestamp: Number(new Date(msg.messageTimestamp! * 1000)),
       source: "baileys",
       starred: false,
       status: "sent",

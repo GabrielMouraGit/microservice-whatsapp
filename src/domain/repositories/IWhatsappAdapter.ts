@@ -26,6 +26,7 @@ export interface IWhatsappAdapter {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     caption: string,
     quoted_id: string,
   ): Promise<{ message_id: string }>;
@@ -33,6 +34,7 @@ export interface IWhatsappAdapter {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     caption: string,
     quoted_id: string,
   ): Promise<{ message_id: string }>;
@@ -40,6 +42,7 @@ export interface IWhatsappAdapter {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     quoted_id?: string,
   ): Promise<{ message_id: string }>;
 
@@ -47,6 +50,7 @@ export interface IWhatsappAdapter {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     quoted_id: string,
   ): Promise<{ message_id: string }>;
   sendDocument(

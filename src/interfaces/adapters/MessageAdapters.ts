@@ -26,13 +26,15 @@ export class MessageAdapters {
   async httpSendImage(request: FastifyRequest) {
     const tenant_id = request.auth.tenant_id;
 
-    const { session_id, number, url, caption, quoted_id } = request.body as {
-      session_id: string;
-      number: string;
-      url: string;
-      caption: string;
-      quoted_id?: string;
-    };
+    const { session_id, number, url, caption, mimetype, quoted_id } =
+      request.body as {
+        session_id: string;
+        number: string;
+        url: string;
+        caption: string;
+        mimetype: string;
+        quoted_id?: string;
+      };
 
     return await this.controller.sendImage({
       sessionId: session_id,
@@ -40,6 +42,7 @@ export class MessageAdapters {
       number,
       url,
       caption,
+      mimetype,
       quoted_id: quoted_id || "",
     });
   }
@@ -47,13 +50,15 @@ export class MessageAdapters {
   async httpSendVideo(request: FastifyRequest) {
     const tenant_id = request.auth.tenant_id;
 
-    const { session_id, number, url, caption, quoted_id } = request.body as {
-      session_id: string;
-      number: string;
-      url: string;
-      caption: string;
-      quoted_id?: string;
-    };
+    const { session_id, number, url, caption, mimetype, quoted_id } =
+      request.body as {
+        session_id: string;
+        number: string;
+        url: string;
+        caption: string;
+        mimetype: string;
+        quoted_id?: string;
+      };
 
     return await this.controller.sendVideo({
       sessionId: session_id,
@@ -61,6 +66,7 @@ export class MessageAdapters {
       number,
       url,
       caption,
+      mimetype,
       quoted_id: quoted_id || "",
     });
   }
@@ -68,10 +74,11 @@ export class MessageAdapters {
   async httpSendAudio(request: FastifyRequest) {
     const tenant_id = request.auth.tenant_id;
 
-    const { session_id, number, url, quoted_id } = request.body as {
+    const { session_id, number, url, mimetype, quoted_id } = request.body as {
       session_id: string;
       number: string;
       url: string;
+      mimetype: string;
       quoted_id?: string;
     };
 
@@ -80,6 +87,7 @@ export class MessageAdapters {
       tenant_id,
       number,
       url,
+      mimetype,
       quoted_id: quoted_id || "",
     });
   }
@@ -87,18 +95,26 @@ export class MessageAdapters {
   async httpSendVoice(request: FastifyRequest) {
     const tenant_id = request.auth.tenant_id;
 
-    const { session_id, number, url, quoted_id } = request.body as {
+    const { session_id, number, url, mimetype, quoted_id } = request.body as {
       session_id: string;
       number: string;
       url: string;
+      mimetype: string;
       quoted_id?: string;
     };
-
+    console.log("Received voice message request:", {
+      session_id,
+      number,
+      url,
+      mimetype,
+      quoted_id,
+    });
     return await this.controller.sendVoice({
       sessionId: session_id,
       tenant_id,
       number,
       url,
+      mimetype,
       quoted_id: quoted_id || "",
     });
   }

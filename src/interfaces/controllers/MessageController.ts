@@ -54,6 +54,7 @@ export class MessageController implements IMessage {
     sessionId: string;
     number: string;
     url: string;
+    mimetype: string;
     caption: string;
     quoted_id: string;
   }): Promise<{ message_id: string }> {
@@ -63,6 +64,7 @@ export class MessageController implements IMessage {
       params.sessionId,
       params.number,
       params.url,
+      params.mimetype,
       params.caption,
       params.quoted_id,
     );
@@ -73,6 +75,7 @@ export class MessageController implements IMessage {
     sessionId: string;
     number: string;
     url: string;
+    mimetype: string;
     caption: string;
     quoted_id: string;
   }): Promise<{ message_id: string }> {
@@ -82,6 +85,7 @@ export class MessageController implements IMessage {
       params.sessionId,
       params.number,
       params.url,
+      params.mimetype,
       params.caption,
       params.quoted_id,
     );
@@ -92,6 +96,7 @@ export class MessageController implements IMessage {
     sessionId: string;
     number: string;
     url: string;
+    mimetype: string;
     quoted_id?: string;
   }): Promise<{ message_id: string }> {
     await this.validateSession(params.tenant_id, params.sessionId);
@@ -100,6 +105,7 @@ export class MessageController implements IMessage {
       params.sessionId,
       params.number,
       params.url,
+      params.mimetype,
       params.quoted_id,
     );
   }
@@ -108,6 +114,7 @@ export class MessageController implements IMessage {
     tenant_id: string;
     sessionId: string;
     number: string;
+    mimetype: string;
     url: string;
     quoted_id: string;
   }): Promise<{ message_id: string }> {
@@ -117,6 +124,7 @@ export class MessageController implements IMessage {
       params.sessionId,
       params.number,
       params.url,
+      params.mimetype,
       params.quoted_id,
     );
   }

@@ -42,6 +42,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     caption: string,
     quoted_id: string,
   ) {
@@ -49,6 +50,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
       sessionId,
       number,
       url,
+      mimetype,
       caption,
       quoted_id,
     );
@@ -57,6 +59,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     caption: string,
     quoted_id: string,
   ) {
@@ -64,6 +67,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
       sessionId,
       number,
       url,
+      mimetype,
       caption,
       quoted_id,
     );
@@ -72,17 +76,31 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     quoted_id?: string,
   ) {
-    return this.repository.sendAudioMessage(sessionId, number, url, quoted_id);
+    return this.repository.sendAudioMessage(
+      sessionId,
+      number,
+      url,
+      mimetype,
+      quoted_id,
+    );
   }
   async sendVoice(
     sessionId: string,
     number: string,
     url: string,
+    mimetype: string,
     quoted_id: string,
   ) {
-    return this.repository.sendVoiceMessage(sessionId, number, url, quoted_id);
+    return this.repository.sendVoiceMessage(
+      sessionId,
+      number,
+      url,
+      mimetype,
+      quoted_id,
+    );
   }
   async sendDocument(
     sessionId: string,
