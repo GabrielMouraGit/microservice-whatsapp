@@ -7,6 +7,11 @@ import {
 } from "@whiskeysockets/baileys";
 import { MessageEventLogRepository } from "../MessageEventLogRepository";
 import { MessageRepository } from "../MessageRepository";
+import ffmpeg from "fluent-ffmpeg";
+import { promises as fs } from "fs";
+import { tmpdir } from "os";
+import path from "path";
+
 
 export class BaileysRepository {
   constructor(
@@ -207,10 +212,15 @@ export class BaileysRepository {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
 
+    const  response = await fetch(url);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const opusBuffer = await this.convertToOpus(buffer);
+    
     const content = {
-      audio: { url },
-      mimetype,
+      audio: opusBuffer,
+      mimetype: "audio/ogg; codecs=opus",
       ptt: true,
+        waveform: new Uint8Array(64), // exemplo
     };
 
     const result = await this.sendMessageCore(sock, jid, content, quoted_id);
@@ -221,6 +231,38 @@ export class BaileysRepository {
       message_id: result?.key.id,
     };
   }
+
+
+private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
+  const input = path.join(tmpdir(), `${Date.now()}.input`);
+  const output = path.join(tmpdir(), `${Date.now()}.ogg`);
+
+  await fs.writeFile(input, inputBuffer);
+
+  await new Promise<void>((resolve, reject) => {
+  ffmpeg(input)
+    .audioCodec("libopus")
+    .audioBitrate(48)
+    .audioFrequency(48000)
+    .audioChannels(1)
+    .format("ogg")
+   .outputOptions([
+  "-application", "voip",
+  "-vbr", "on",
+  "-compression_level", "10"
+])
+    .on("end", () => resolve())
+    .on("error", reject)
+    .save(output);
+  });
+
+  const result = await fs.readFile(output);
+
+  await fs.unlink(input).catch(() => {});
+  await fs.unlink(output).catch(() => {});
+
+  return result;
+}
   async sendDocumentMessage(
     sessionId: string,
     number: string,
