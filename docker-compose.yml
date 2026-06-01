@@ -25,7 +25,7 @@ services:
     depends_on:
       - whatsapp-db
       - rabbitmq
-    command: sh -c "npm i && npm run prisma:deploy && npm run dev"
+    command: sh -c "npm i && npm run prisma:generate && npm run prisma:deploy && npm run dev"
 
   whatsapp-db:
     image: postgres:15
