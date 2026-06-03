@@ -122,13 +122,14 @@ export class MessageAdapters {
   async httpSendDocument(request: FastifyRequest) {
     const tenant_id = request.auth.tenant_id;
 
-    const { session_id, number, url, fileName, mimetype, quoted_id } =
+    const { session_id, number, url, fileName, mimetype, quoted_id,caption } =
       request.body as {
         session_id: string;
         number: string;
         url: string;
         fileName: string;
         mimetype: string;
+        caption: string;
         quoted_id?: string;
       };
 
@@ -140,6 +141,7 @@ export class MessageAdapters {
       fileName,
       mimetype,
       quoted_id: quoted_id || "",
+      caption: caption || "",
     });
   }
   async httpDeleteMessage(request: FastifyRequest) {

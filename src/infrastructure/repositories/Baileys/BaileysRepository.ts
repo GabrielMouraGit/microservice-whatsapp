@@ -270,6 +270,7 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
     fileName: string,
     mimetype: string,
     quoted_id?: string,
+    caption?: string,
   ) {
     const sock = await this.getReadySocket(sessionId);
     const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
@@ -278,6 +279,7 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
       document: { url },
       fileName,
       mimetype,
+      caption: caption || "",
     };
 
     const result = await this.sendMessageCore(sock, jid, content, quoted_id);

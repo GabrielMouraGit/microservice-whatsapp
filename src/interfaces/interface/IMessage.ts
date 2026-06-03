@@ -52,6 +52,7 @@ export interface IMessage {
     fileName: string;
     mimetype: string;
     quoted_id: string;
+    caption: string;
   }): Promise<{ message_id: string }>;
   deleteMessage(data: {
     tenant_id: string;

@@ -60,6 +60,7 @@ export interface IWhatsappAdapter {
     fileName: string,
     mimetype: string,
     quoted_id: string,
+    caption: string,
   ): Promise<{ message_id: string }>;
   getContact(
     sessionId: string,

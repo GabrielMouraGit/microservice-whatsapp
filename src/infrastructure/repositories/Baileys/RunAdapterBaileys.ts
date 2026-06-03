@@ -109,6 +109,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
     fileName: string,
     mimetype: string,
     quoted_id: string,
+    caption: string,
   ) {
     return this.repository.sendDocumentMessage(
       sessionId,
@@ -117,6 +118,7 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
       fileName,
       mimetype,
       quoted_id,
+      caption,
     );
   }
   async logout(sessionId: string) {

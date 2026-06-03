@@ -137,6 +137,7 @@ export class MessageController implements IMessage {
     fileName: string;
     mimetype: string;
     quoted_id: string;
+    caption: string;
   }): Promise<{ message_id: string }> {
     await this.validateSession(params.tenant_id, params.sessionId);
 
@@ -147,6 +148,7 @@ export class MessageController implements IMessage {
       params.fileName,
       params.mimetype,
       params.quoted_id,
+      params.caption,
     );
   }
 
