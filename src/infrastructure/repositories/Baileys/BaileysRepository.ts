@@ -452,6 +452,50 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
       );
     }
   }
+  async markChatAsRead(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    const lastMessage = await this.messageRepository.getMessagesLastMessageByChatId(jid);
+
+    if (!lastMessage) {
+      await sock.chatModify({ markRead: true, lastMessages: [] }, jid);
+      return;
+    }
+
+    const eventLog = await this.messageEventLogRepository.findByMessageId(lastMessage.toDTO().id);
+    const waMessage = eventLog?.payload as WAMessage | undefined;
+
+    if (!waMessage?.key || !waMessage?.messageTimestamp) {
+      await sock.chatModify({ markRead: true, lastMessages: [] }, jid);
+      return;
+    }
+
+    await sock.chatModify(
+      {
+        markRead: true,
+        lastMessages: [{ key: waMessage.key, messageTimestamp: waMessage.messageTimestamp }],
+      },
+      jid,
+    );
+  }
+
+  async sendTyping(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    await sock.sendPresenceUpdate("composing", jid);
+    await new Promise((r) => setTimeout(r, 5000));
+    await sock.sendPresenceUpdate("paused", jid);
+  }
+
+  async markAsRead(sessionId: string, number: string, messageId: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+
+    await sock.readMessages([{ remoteJid: jid, id: messageId, fromMe: false }]);
+  }
+
   async editMessage(
     sessionId: string,
     number: string,

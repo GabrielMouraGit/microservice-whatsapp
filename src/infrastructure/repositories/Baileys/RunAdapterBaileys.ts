@@ -156,4 +156,20 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
   ): Promise<void> {
     await this.repository.forwardMessage(sessionId, number, messageId);
   }
+
+  async markChatAsRead(sessionId: string, number: string): Promise<void> {
+    await this.repository.markChatAsRead(sessionId, number);
+  }
+
+  async sendTyping(sessionId: string, number: string): Promise<void> {
+    await this.repository.sendTyping(sessionId, number);
+  }
+
+  async markAsRead(
+    sessionId: string,
+    number: string,
+    messageId: string,
+  ): Promise<void> {
+    await this.repository.markAsRead(sessionId, number, messageId);
+  }
 }

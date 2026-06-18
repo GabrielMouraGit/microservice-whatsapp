@@ -182,4 +182,39 @@ export class MessageController implements IMessage {
       params.messageId,
     );
   }
+
+  async markChatAsRead(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.markChatAsRead(params.sessionId, params.number);
+  }
+
+  async sendTyping(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.sendTyping(params.sessionId, params.number);
+  }
+
+  async markAsRead(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.markAsRead(
+      params.sessionId,
+      params.number,
+      params.messageId,
+    );
+  }
 }

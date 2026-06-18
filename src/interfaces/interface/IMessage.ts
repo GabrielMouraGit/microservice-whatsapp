@@ -73,4 +73,23 @@ export interface IMessage {
     number: string;
     messageId: string;
   }): Promise<void>;
+
+  markChatAsRead(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void>;
+
+  sendTyping(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void>;
+
+  markAsRead(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+  }): Promise<void>;
 }

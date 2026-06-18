@@ -194,4 +194,49 @@ export class MessageAdapters {
       tenant_id,
     });
   }
+
+  async httpMarkChatAsRead(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const { session_id, number } = request.body as {
+      session_id: string;
+      number: string;
+    };
+
+    await this.controller.markChatAsRead({ sessionId: session_id, tenant_id, number });
+
+    return { success: true };
+  }
+
+  async httpSendTyping(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const { session_id, number } = request.body as {
+      session_id: string;
+      number: string;
+    };
+
+    await this.controller.sendTyping({ sessionId: session_id, tenant_id, number });
+
+    return { success: true };
+  }
+
+  async httpMarkAsRead(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const { session_id, number, message_id } = request.body as {
+      session_id: string;
+      number: string;
+      message_id: string;
+    };
+
+    await this.controller.markAsRead({
+      sessionId: session_id,
+      tenant_id,
+      number,
+      messageId: message_id,
+    });
+
+    return { success: true };
+  }
 }

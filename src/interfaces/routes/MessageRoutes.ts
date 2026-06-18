@@ -51,4 +51,19 @@ export async function MessageRoutes(net: FastifyInstance) {
     "/api/v1/message/forward-message",
     adapters.httpForwardMessage.bind(adapters),
   );
+
+  net.post(
+    "/api/v1/message/mark-chat-as-read",
+    adapters.httpMarkChatAsRead.bind(adapters),
+  );
+
+  net.post(
+    "/api/v1/message/send-typing",
+    adapters.httpSendTyping.bind(adapters),
+  );
+
+  net.post(
+    "/api/v1/message/mark-as-read",
+    adapters.httpMarkAsRead.bind(adapters),
+  );
 }
