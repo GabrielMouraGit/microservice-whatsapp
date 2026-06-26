@@ -47,6 +47,22 @@ fastify.get(`${PREFIX_SERVICE}/public/api/v1/resyncall`, async () => {
   return { resync: true };
 });
 
+let syncRunning = false;
+
+function startPeriodicSync(intervalMs = 5 * 60 * 1000) {
+  setInterval(async () => {
+    if (syncRunning) return;
+    syncRunning = true;
+    try {
+      await reSyncAllMessagensUseCase.execute();
+    } catch (err) {
+      console.error("❌ erro no sync periódico:", err);
+    } finally {
+      syncRunning = false;
+    }
+  }, intervalMs);
+}
+
 async function start() {
   // sobe API primeiro
   await fastify.listen({ port: 3060, host: "0.0.0.0" });
@@ -66,6 +82,8 @@ async function start() {
     sessionBootstrap.init().catch((err) => {
       console.error("Erro ao inicializar sessões:", err);
     });
+
+    startPeriodicSync();
   } catch (err) {
     console.error("❌ erro no background init:", err);
   }

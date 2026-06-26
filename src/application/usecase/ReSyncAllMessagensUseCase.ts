@@ -11,36 +11,43 @@ export class ReSyncAllMessagensUseCase {
     private baileysConnector: BaileysConnector,
     private events: EventBus<ITypeSessionEvents>,
   ) {}
+
   async execute() {
-    const allMessagesLogs =
-      await this.messageEventLogRepository.getAllMessagesLogs();
-    console.log(
-      `Total de mensagens a re-sincronizar: ${allMessagesLogs.length}`,
-    );
-    for (const msg of allMessagesLogs) {
+    const pending = await this.messageEventLogRepository.findPending(100);
+
+    if (pending.length === 0) return;
+
+    console.log(`🔄 re-sincronizando ${pending.length} mensagem(ns) pendente(s)...`);
+
+    for (const msg of pending) {
       try {
-        if (!msg?.payload || !msg.tenantId || !msg.sessionId) continue;
-
-        console.log(
-          `Re-sincronizando mensagem: ${msg.id} - Sessão: ${msg.sessionId} - Início: ${new Date().toISOString()}`,
-        );
-        const messagePayload = msg.payload as WAMessage;
-
-        const sock = await this.baileysConnector.getSocket(msg.sessionId);
-        if (sock) {
-          console.log("Nao tem socker");
+        if (!msg?.payload || !msg.tenantId || !msg.sessionId) {
+          await this.messageEventLogRepository.markAsProcessed(msg.id);
+          continue;
         }
 
-        const { url } = await this.baileysConnector.uploadMessageMedia(
-          sock,
-          msg,
-          msg.tenantId,
-        );
+        const messagePayload = msg.payload as WAMessage;
+
+        const sock = this.baileysConnector.getSocket(msg.sessionId);
+
+        let url = "";
+
+        if (sock) {
+          const result = await this.baileysConnector.uploadMessageMedia(
+            sock,
+            messagePayload,
+            msg.tenantId,
+          );
+          url = result.url;
+        } else {
+          console.log(`⚠️  sessão ${msg.sessionId} não conectada — sincronizando sem mídia`);
+        }
 
         const mapped = BaileysToWhatpyMapper.map(messagePayload, url);
 
         if (!mapped) {
-          console.log("Nao tem mapped");
+          await this.messageEventLogRepository.markAsProcessed(msg.id);
+          continue;
         }
 
         await this.events.emit("message.received", {
@@ -49,11 +56,11 @@ export class ReSyncAllMessagensUseCase {
           data: mapped,
         });
 
-        console.log(
-          `Re-sincronizando mensagem: ${msg.id} - Sessão: ${msg.sessionId} - Fim: ${new Date().toISOString()}`,
-        );
+        await this.messageEventLogRepository.markAsProcessed(msg.id);
+
+        console.log(`✅ mensagem sincronizada: ${msg.id}`);
       } catch (err) {
-        console.error(`Erro ao re-sincronizar mensagem ${msg.id}:`, err);
+        console.error(`❌ erro ao re-sincronizar mensagem ${msg.id}:`, err);
       }
     }
   }
