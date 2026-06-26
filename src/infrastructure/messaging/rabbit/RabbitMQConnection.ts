@@ -18,6 +18,12 @@ export class RabbitMQConnection {
 
   private consumers: ConsumerRegistry[] = [];
 
+  //
+  // Incremented each time a new connection is established.
+  // Used to cancel stale consumer loops from previous connections.
+  //
+  private connectionGeneration = 0;
+
   private constructor() {}
 
   //
@@ -35,7 +41,6 @@ export class RabbitMQConnection {
 
   //
   // CONNECT
-  // Apenas estabelece a conexão — restoreConsumers é responsabilidade do reconnect().
   //
   async connect(): Promise<void> {
     if (this.connectingPromise) {
@@ -57,7 +62,9 @@ export class RabbitMQConnection {
           this.connection = connection;
 
           connection.on("close", async () => {
-            console.log("⚠️  RabbitMQ conexão fechada — iniciando reconexão...");
+            console.log(
+              "⚠️  RabbitMQ conexão fechada — iniciando reconexão...",
+            );
 
             this.connection = undefined;
 
@@ -98,7 +105,9 @@ export class RabbitMQConnection {
         await this.connect();
 
         if (this.connection) {
-          await this.restoreConsumers();
+          const generation = ++this.connectionGeneration;
+
+          this.restoreConsumers(generation);
 
           console.log("✅ RabbitMQ reconectado com sucesso");
 
@@ -116,7 +125,6 @@ export class RabbitMQConnection {
     this.connectingPromise = undefined;
     this.reconnecting = false;
 
-    // Se a conexão caiu novamente durante o processo de reconexão
     if (!this.connection) {
       this.reconnect();
     }
@@ -175,38 +183,76 @@ export class RabbitMQConnection {
       return;
     }
 
-    this.consumers.push({ name, listener });
+    const consumer: ConsumerRegistry = { name, listener };
 
-    const channel = await this.createChannel();
+    this.consumers.push(consumer);
 
-    channel.on("close", () => {
-      console.log(`⚠️  consumer channel fechado: ${name}`);
-    });
-
-    await listener(channel);
+    //
+    // Start the consumer loop tied to the current connection generation.
+    // If the connection drops and reconnects, restoreConsumers() will
+    // start a new loop for the new generation.
+    //
+    this.startConsumerLoop(consumer, this.connectionGeneration).catch(() => {});
   }
 
   //
-  // RESTORE CONSUMERS AFTER RECONNECT
+  // RESTORE ALL CONSUMERS AFTER RECONNECT
+  // Fire-and-forget: each consumer manages its own retry loop.
   //
-  private async restoreConsumers(): Promise<void> {
+  private restoreConsumers(generation: number): void {
     if (!this.connection || this.consumers.length === 0) return;
 
     console.log(`🔄 restaurando ${this.consumers.length} consumer(s)...`);
 
     for (const consumer of this.consumers) {
-      try {
-        const channel = await this.createChannel();
+      this.startConsumerLoop(consumer, generation).catch(() => {});
+    }
+  }
 
-        channel.on("close", () => {
-          console.log(`⚠️  consumer channel fechado: ${consumer.name}`);
-        });
+  //
+  // CONSUMER LOOP
+  //
+  // Keeps a consumer alive for a given connection generation.
+  // - Retries automatically if the channel dies due to a channel-level error
+  //   (e.g. queue not found) while the connection is still alive.
+  // - Stops naturally when the connection generation changes (i.e. the
+  //   connection dropped and a new one is being established).
+  //
+  private async startConsumerLoop(
+    consumer: ConsumerRegistry,
+    generation: number,
+  ): Promise<void> {
+    while (this.connectionGeneration === generation) {
+      try {
+        if (!this.connection) break;
+
+        const channel = await this.createChannel();
 
         await consumer.listener(channel);
 
-        console.log(`✅ consumer restaurado: ${consumer.name}`);
+        console.log(`✅ consumer ativo: ${consumer.name}`);
+
+        //
+        // Block until the channel closes (connection drop or channel error).
+        // When it closes the loop will decide whether to retry or stop.
+        //
+        await new Promise<void>((resolve) => {
+          channel.once("close", resolve);
+          channel.once("error", () => resolve());
+        });
+
+        if (this.connectionGeneration === generation && this.connection) {
+          console.log(
+            `🔄 canal fechado, recriando consumer ${consumer.name}...`,
+          );
+          await this.sleep(2000);
+        }
       } catch (err) {
-        console.error(`❌ erro restaurar consumer ${consumer.name}:`, err);
+        if (this.connectionGeneration !== generation || !this.connection) break;
+
+        console.error(`❌ erro consumer ${consumer.name}, retry em 5s:`, err);
+
+        await this.sleep(5000);
       }
     }
   }
