@@ -6,11 +6,14 @@ export async function bootstrapRabbitMQ() {
     try {
       const rabbit = await RabbitMQConnection.getInstance();
 
-      const channel = await rabbit.getChannel();
+      const channel = await rabbit.createChannel();
 
-      await RabbitMQBootstrap.setup(channel);
-
-      console.log("✅ topology RabbitMQ criada");
+      try {
+        await RabbitMQBootstrap.setup(channel);
+        console.log("✅ topology RabbitMQ criada");
+      } finally {
+        await channel.close();
+      }
 
       return; // <- SAI DO LOOP
     } catch {

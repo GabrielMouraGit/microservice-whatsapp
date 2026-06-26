@@ -1,25 +1,27 @@
 // RabbitMQPublisher.ts
-
-import { ConfirmChannel } from "amqplib";
 import { RabbitMQConnection } from "./RabbitMQConnection";
 
 export class RabbitMQPublisher {
   async publishQueue(queue: string, message: unknown) {
     const conn = await RabbitMQConnection.getInstance();
 
-    const channel = await conn.getChannel();
+    const channel = await conn.createChannel();
 
     await channel.assertQueue(queue, {
       durable: true,
     });
 
-    channel.sendToQueue(queue, Buffer.from(JSON.stringify(message)), {
-      persistent: true,
-    });
+    try {
+      channel.sendToQueue(queue, Buffer.from(JSON.stringify(message)), {
+        persistent: true,
+      });
 
-    await channel.waitForConfirms();
+      await channel.waitForConfirms();
 
-    console.log(`📤 mensagem enviada fila: ${queue}`);
+      console.log(`📤 mensagem enviada fila: ${queue}`);
+    } finally {
+      await channel.close();
+    }
   }
 
   async publishExchange(
@@ -29,23 +31,27 @@ export class RabbitMQPublisher {
   ) {
     const conn = await RabbitMQConnection.getInstance();
 
-    const channel: ConfirmChannel = await conn.getChannel();
+    const channel = await conn.createChannel();
 
     await channel.assertExchange(exchange, "topic", {
       durable: true,
     });
 
-    channel.publish(
-      exchange,
-      routingKey,
-      Buffer.from(JSON.stringify(message)),
-      {
-        persistent: true,
-      },
-    );
+    try {
+      channel.publish(
+        exchange,
+        routingKey,
+        Buffer.from(JSON.stringify(message)),
+        {
+          persistent: true,
+        },
+      );
 
-    await channel.waitForConfirms();
+      await channel.waitForConfirms();
 
-    console.log(`📤 exchange=${exchange} routingKey=${routingKey}`);
+      console.log(`📤 exchange=${exchange} routingKey=${routingKey}`);
+    } finally {
+      await channel.close();
+    }
   }
 }
