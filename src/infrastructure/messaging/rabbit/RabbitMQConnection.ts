@@ -35,6 +35,7 @@ export class RabbitMQConnection {
 
   //
   // CONNECT
+  // Apenas estabelece a conexão — restoreConsumers é responsabilidade do reconnect().
   //
   async connect(): Promise<void> {
     if (this.connectingPromise) {
@@ -48,33 +49,26 @@ export class RabbitMQConnection {
 
           const url = process.env.RABBITMQ_URL!;
           const connectUrl = url.includes("?")
-            ? `${url}&heartbeat=30`
-            : `${url}?heartbeat=30`;
+            ? `${url}&heartbeat=10`
+            : `${url}?heartbeat=10`;
+
           const connection = await amqp.connect(connectUrl);
 
           this.connection = connection;
 
-          //
-          // EVENTS
-          //
           connection.on("close", async () => {
-            console.log("⚠️ RabbitMQ conexão fechada");
+            console.log("⚠️  RabbitMQ conexão fechada — iniciando reconexão...");
 
             this.connection = undefined;
 
             await this.reconnect();
           });
 
-          connection.on("error", async (err) => {
-            console.error("❌ erro conexão RabbitMQ:", err);
+          connection.on("error", (err) => {
+            console.error("❌ erro conexão RabbitMQ:", err.message);
           });
 
           console.log("✅ RabbitMQ conectado");
-
-          //
-          // RESTORE CONSUMERS
-          //
-          await this.restoreConsumers();
 
           return;
         } catch (err) {
@@ -95,22 +89,25 @@ export class RabbitMQConnection {
     if (this.reconnecting) return;
 
     this.reconnecting = true;
-
     this.connectingPromise = undefined;
+
+    console.log("🔄 tentando reconectar RabbitMQ...");
 
     while (!this.connection) {
       try {
-        console.log("🔄 tentando reconectar RabbitMQ...");
-
         await this.connect();
 
         if (this.connection) {
-          console.log("✅ RabbitMQ reconectado");
+          await this.restoreConsumers();
+
+          console.log("✅ RabbitMQ reconectado com sucesso");
 
           break;
         }
       } catch (err) {
         console.error("❌ erro reconnect:", err);
+
+        this.connection = undefined;
       }
 
       await this.sleep(5000);
@@ -118,6 +115,11 @@ export class RabbitMQConnection {
 
     this.connectingPromise = undefined;
     this.reconnecting = false;
+
+    // Se a conexão caiu novamente durante o processo de reconexão
+    if (!this.connection) {
+      this.reconnect();
+    }
   }
 
   //
@@ -132,12 +134,8 @@ export class RabbitMQConnection {
 
     const channel = await this.connection!.createConfirmChannel();
 
-    channel.on("close", () => {
-      console.log("⚠️ channel fechado");
-    });
-
     channel.on("error", (err) => {
-      console.error("❌ erro channel:", err);
+      console.error("❌ erro channel:", err.message);
     });
 
     return channel;
@@ -172,20 +170,18 @@ export class RabbitMQConnection {
     const exists = this.consumers.find((c) => c.name === name);
 
     if (exists) {
-      console.warn(`⚠️ consumer já registrado: ${name}`);
+      console.warn(`⚠️  consumer já registrado: ${name}`);
 
       return;
     }
 
-    this.consumers.push({
-      name,
-      listener,
-    });
+    this.consumers.push({ name, listener });
 
-    //
-    // START IMMEDIATELY
-    //
     const channel = await this.createChannel();
+
+    channel.on("close", () => {
+      console.log(`⚠️  consumer channel fechado: ${name}`);
+    });
 
     await listener(channel);
   }
@@ -194,13 +190,17 @@ export class RabbitMQConnection {
   // RESTORE CONSUMERS AFTER RECONNECT
   //
   private async restoreConsumers(): Promise<void> {
-    if (!this.connection) return;
+    if (!this.connection || this.consumers.length === 0) return;
 
-    console.log("🔄 restaurando consumers...");
+    console.log(`🔄 restaurando ${this.consumers.length} consumer(s)...`);
 
     for (const consumer of this.consumers) {
       try {
         const channel = await this.createChannel();
+
+        channel.on("close", () => {
+          console.log(`⚠️  consumer channel fechado: ${consumer.name}`);
+        });
 
         await consumer.listener(channel);
 
