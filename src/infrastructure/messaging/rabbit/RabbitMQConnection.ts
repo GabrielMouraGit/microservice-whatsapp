@@ -1,4 +1,5 @@
 import amqp, { ChannelModel, ConfirmChannel, Options } from "amqplib";
+import { RabbitMQBootstrap } from "./RabbitMQBootstrap";
 
 type ConsumerListener = (channel: ConfirmChannel) => Promise<void>;
 
@@ -105,6 +106,8 @@ export class RabbitMQConnection {
         await this.connect();
 
         if (this.connection) {
+          await this.setupTopology();
+
           const generation = ++this.connectionGeneration;
 
           this.restoreConsumers(generation);
@@ -193,6 +196,19 @@ export class RabbitMQConnection {
     // start a new loop for the new generation.
     //
     this.startConsumerLoop(consumer, this.connectionGeneration).catch(() => {});
+  }
+
+  //
+  // SETUP TOPOLOGY (exchanges, queues, bindings) via RabbitMQBootstrap
+  //
+  private async setupTopology(): Promise<void> {
+    const channel = await this.createChannel();
+    try {
+      await RabbitMQBootstrap.setup(channel);
+      console.log("✅ topology RabbitMQ recriada");
+    } finally {
+      await channel.close();
+    }
   }
 
   //
