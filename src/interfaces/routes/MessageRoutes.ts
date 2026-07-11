@@ -1,28 +1,8 @@
 import { FastifyInstance } from "fastify";
-import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRepositoryPrisma";
-import { RunAdapterBaileys } from "@/infrastructure/repositories/Baileys/RunAdapterBaileys";
-import { baileysConnector, sessionManager } from "container";
-import { BaileysRepository } from "@/infrastructure/repositories/Baileys/BaileysRepository";
+import { messageController } from "container";
 import { MessageAdapters } from "../adapters/MessageAdapters";
-import { MessageController } from "../controllers/MessageController";
-import { MessageEventLogRepository } from "@/infrastructure/repositories/MessageEventLogRepository";
-import { MessageRepository } from "@/infrastructure/repositories/MessageRepository";
 
-const repositorySession = new SessionRepositoryPrisma();
-const messageEventLogRepository = new MessageEventLogRepository();
-const messageRepository = new MessageRepository();
-
-const baileysRepository = new BaileysRepository(
-  baileysConnector,
-  sessionManager,
-  messageEventLogRepository,
-  messageRepository,
-);
-
-const runAdapter = new RunAdapterBaileys(baileysRepository);
-
-const controller = new MessageController(repositorySession, runAdapter);
-const adapters = new MessageAdapters(controller);
+const adapters = new MessageAdapters(messageController);
 
 export async function MessageRoutes(net: FastifyInstance) {
   net.post("/api/v1/message/send-text", adapters.httpSendText.bind(adapters));

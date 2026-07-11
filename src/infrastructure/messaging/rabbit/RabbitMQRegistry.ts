@@ -53,6 +53,62 @@ export const RabbitMQRegistry: RabbitMQExchangeConfig[] = [
       },
     ],
   },
+
+  {
+    exchange: "messages.send.exchange",
+
+    type: "topic",
+
+    queues: [
+      {
+        name: "messages.send.queue",
+
+        routingKey: "messages.send",
+
+        maxRetries: 15,
+
+        retry: {
+          queue: "messages.send.queue.retry",
+          ttl: 30000,
+          multiplier: 2,
+          maxTtl: 900000,
+        },
+
+        dlq: {
+          exchange: "messages.send.exchange.dlx",
+          queue: "messages.send.queue.dlq",
+        },
+      },
+    ],
+  },
+
+  {
+    exchange: "messages.status.exchange",
+
+    type: "topic",
+
+    queues: [
+      {
+        name: "messages.status.queue",
+
+        routingKey: "messages.status",
+
+        maxRetries: 15,
+
+        retry: {
+          queue: "messages.status.queue.retry",
+          ttl: 30000,
+          multiplier: 2,
+          maxTtl: 900000,
+        },
+
+        dlq: {
+          exchange: "messages.status.exchange.dlx",
+          queue: "messages.status.queue.dlq",
+        },
+      },
+    ],
+  },
 ];
 
 export type RabbitMQRouting = {

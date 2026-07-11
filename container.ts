@@ -8,6 +8,12 @@ import { ITypeMessageLogEvents } from "@/domain/events/ITypeMessageLogEvents";
 import { DomainEventDispatcher } from "@/infrastructure/events/DomainEventDispatcher";
 import { MessageEventLogRepository } from "@/infrastructure/repositories/MessageEventLogRepository";
 import { ReSyncAllMessagensUseCase } from "@/application/usecase/ReSyncAllMessagensUseCase";
+import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRepositoryPrisma";
+import { BaileysRepository } from "@/infrastructure/repositories/Baileys/BaileysRepository";
+import { RunAdapterBaileys } from "@/infrastructure/repositories/Baileys/RunAdapterBaileys";
+import { MessageRepository } from "@/infrastructure/repositories/MessageRepository";
+import { MessageController } from "@/interfaces/controllers/MessageController";
+import { RabbitMQPublisher } from "@/infrastructure/messaging/rabbit/RabbitMQPublisher";
 
 export const eventBus = new EventBus<AppEvents>();
 
@@ -29,4 +35,26 @@ export const reSyncAllMessagensUseCase = new ReSyncAllMessagensUseCase(
   messageEventLogRepository,
   baileysConnector,
   eventBus,
+);
+
+export const rabbitMQPublisher = new RabbitMQPublisher();
+
+const repositorySession = new SessionRepositoryPrisma();
+const messageRepository = new MessageRepository();
+
+const baileysRepository = new BaileysRepository(
+  baileysConnector,
+  sessionManager,
+  messageEventLogRepository,
+  messageRepository,
+);
+
+const runAdapter = new RunAdapterBaileys(baileysRepository);
+
+// Shared MessageController instance so the HTTP routes and the
+// messages.send.queue consumer dispatch through the same
+// tenant/session validation and Baileys wiring.
+export const messageController = new MessageController(
+  repositorySession,
+  runAdapter,
 );

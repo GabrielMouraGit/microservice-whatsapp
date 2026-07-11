@@ -13,6 +13,7 @@ import { TenantRoutes } from "@/interfaces/routes/TenantRoutes";
 import { GroupRoutes } from "@/interfaces/routes/GroupRoutes";
 import { bootstrapRabbitMQ } from "@/infrastructure/messaging/rabbit/RabbitMQInitApp";
 import { startMediaUploadWorker } from "@/workers/mediaUpload.worker";
+import { startMessagesSendWorker } from "@/workers/messagesSend.worker";
 
 const PREFIX_SERVICE = "/whatsapp-service";
 
@@ -76,6 +77,8 @@ async function start() {
     registerEventHandlers();
 
     await startMediaUploadWorker();
+
+    await startMessagesSendWorker();
 
     const repositorySession = new SessionRepositoryPrisma();
 
