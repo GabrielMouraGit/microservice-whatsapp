@@ -1,6 +1,10 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { baileysConnector, reSyncAllMessagensUseCase } from "container";
+import {
+  baileysConnector,
+  reSyncAllMessagensUseCase,
+  rabbitMQDlqReprocessor,
+} from "container";
 import HandlerRequest from "@/interfaces/plugins/HandlerRequest";
 import HandlerAuth from "@/interfaces/plugins/HandlerAuth";
 import { SessionRoutes } from "@/interfaces/routes/SessionRoutes";
@@ -50,6 +54,38 @@ fastify.get(`${PREFIX_SERVICE}/public/api/v1/resyncall`, async () => {
   });
   return { resync: true };
 });
+
+// Drena a DLQ de uma fila principal e devolve as mensagens para ela,
+// com um novo orçamento de retry. Sem "queue" no body/query, assume
+// "messages.queue"; "limit" limita quantas mensagens são reprocessadas
+// nessa chamada (default 500) — chame de novo para continuar drenando.
+fastify.post(
+  `${PREFIX_SERVICE}/public/api/v1/dlq/reprocess`,
+  async (request, reply) => {
+    const params = {
+      ...(request.query as Record<string, unknown>),
+      ...((request.body as Record<string, unknown>) || {}),
+    };
+
+    const queue = (params.queue as string) || "messages.queue";
+    const limit = params.limit !== undefined ? Number(params.limit) : undefined;
+
+    try {
+      const result = await rabbitMQDlqReprocessor.reprocessQueue(
+        queue,
+        limit,
+      );
+
+      return result;
+    } catch (err) {
+      console.error("❌ erro ao reprocessar DLQ:", err);
+
+      return reply.status(400).send({
+        message: err instanceof Error ? err.message : "erro ao reprocessar DLQ",
+      });
+    }
+  },
+);
 
 let syncRunning = false;
 

@@ -14,6 +14,7 @@ import { RunAdapterBaileys } from "@/infrastructure/repositories/Baileys/RunAdap
 import { MessageRepository } from "@/infrastructure/repositories/MessageRepository";
 import { MessageController } from "@/interfaces/controllers/MessageController";
 import { RabbitMQPublisher } from "@/infrastructure/messaging/rabbit/RabbitMQPublisher";
+import { RabbitMQDlqReprocessor } from "@/infrastructure/messaging/rabbit/RabbitMQDlqReprocessor";
 
 export const eventBus = new EventBus<AppEvents>();
 
@@ -38,6 +39,7 @@ export const reSyncAllMessagensUseCase = new ReSyncAllMessagensUseCase(
 );
 
 export const rabbitMQPublisher = new RabbitMQPublisher();
+export const rabbitMQDlqReprocessor = new RabbitMQDlqReprocessor();
 
 const repositorySession = new SessionRepositoryPrisma();
 const messageRepository = new MessageRepository();
