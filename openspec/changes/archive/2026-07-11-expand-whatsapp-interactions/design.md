@@ -1,0 +1,39 @@
+## Context
+
+`BaileysRepository` wraps a single `@whiskeysockets/baileys` `WASocket` per session (via `SessionManager`) and exposes it through `RunAdapterBaileys` (implements `IWhatsappAdapter`), which `MessageController`/`ContactController` call after validating that the session belongs to the requesting tenant. Every inbound message is captured in `messages.upsert` (`BaileysConnector.bindMessages`), mapped, and persisted as a raw `WAMessage` in `MessageEventLogRepository` keyed by `message_id = payload.key.id`. Anything that must reference "the message the user is pointing at by id" (`editMessage`, `forwardMessage`, `markChatAsRead`'s last-message fallback) already re-fetches that stored `WAMessage` to recover its exact `key` (`remoteJid`, `id`, `fromMe`, and — for groups — `participant`). `markAsRead` is the one place that instead rebuilds a key from the `number` path param via `number.replace(/\D/g, "")@s.whatsapp.net`, which drops group JIDs and can mismatch the JID form Baileys actually used for the message (this account uses Baileys 7.0.0-rc.9, which is LID-aware — the JID captured on the wire is not always reconstructable from a phone number).
+
+The user's broader goal is parity with the WhatsApp client itself. Baileys 7.0.0-rc.9's installed type definitions (`node_modules/@whiskeysockets/baileys/lib/Socket/index.d.ts`, `Types/Message.d.ts`, `Types/Chat.d.ts`) were inspected directly (not assumed from memory) to confirm every socket method this design relies on actually exists in the installed version.
+
+## Goals / Non-Goals
+
+**Goals:**
+- Make `markAsRead` (and the fallback path in `markChatAsRead`) always resolve the real captured `WAMessageKey` before calling `sock.readMessages`/`sock.chatModify`, for both individual and group chats.
+- Add HTTP-reachable coverage for the highest-value remaining WhatsApp client actions Baileys already supports: reactions, message star/pin/delete-for-me, richer presence, chat-level management, rich content sends, contact/profile management, and group administration.
+- Keep every new capability inside the existing layered pattern (`Routes → Adapters → Controller → IMessage/IWhatsappAdapter → RunAdapterBaileys → BaileysRepository → WASocket`) and the existing `validateSession(tenant_id, sessionId)` guard.
+
+**Non-Goals:**
+- Business/catalog APIs (`getCatalog`, `productCreate`, business profile), WhatsApp Newsletters/Channels, and Communities are out of scope — they are a different product surface than "what a normal WhatsApp user does" and would roughly double this change's size for low value to this tenant use case.
+- Granular privacy settings (`updateReadReceiptsPrivacy`, `updateLastSeenPrivacy`, etc.) are out of scope; only the actions a user directly triggers from the chat UI (reactions, presence, chat/message management, groups) are covered.
+- No new persistence/schema is introduced. Reactions, presence, chat management, and group actions are modeled as live pass-through calls, exactly like `sendText`/`deleteMessage` today; only the *read* of already-stored message keys is affected.
+- Media downloads/uploads for the new rich-content types reuse the existing `url`-based `WAMediaUpload` pattern already used by `sendImage`/`sendVideo`/`sendDocument` — no new storage integration.
+
+## Decisions
+
+- **Fix `markAsRead` by reusing the `editMessage`/`forwardMessage` key-lookup pattern**, not by patching the regex. Alternative considered: keep synthesizing the JID but special-case `@g.us` detection in the `number` field — rejected because it still can't recover `participant` for group read receipts, and still risks JID-form mismatches for LID contacts. Fetching `MessageEventLogRepository.findByMessageId(messageId).payload.key` gives the exact key Baileys itself produced, which is the only reliable source. If no stored key is found (message unknown to this service), fall back to today's synthesized single-chat key rather than failing the request, matching `markChatAsRead`'s existing fallback style.
+- **Reactions, star, pin, delete-for-me, location/contact/sticker/poll all go through `sock.sendMessage`/`sock.chatModify`** with the same `sendMessageCore`-style quoting/typing helpers already in `BaileysRepository`, rather than introducing a second "raw" pathway — keeps one call surface per chat action and reuses `getReadySocket`.
+- **Presence gets a small dedicated set of methods** (`sendPresence(type, jid)`, `subscribePresence(jid)`) instead of a single "generic presence" endpoint with an open string, so the HTTP contract stays typed to Baileys' actual `WAPresence` union (`unavailable | available | composing | recording | paused`) and callers can't send an invalid value that only fails deep inside the socket.
+- **Group management gets its own controller/adapter/route trio (`GroupController`/`GroupAdapters`/`GroupRoutes`)** rather than being bolted onto `MessageController`, because group operations key off a group JID/participant list, not a `number` + optional `messageId`, and mixing the two shapes into one controller would force awkward optional fields onto every method signature. Contact/profile actions (block/unblock, update own name/status/picture) extend the existing `ContactController`/`ContactRoutes` since they already model "my profile" and "a contact" concepts.
+- **Chat-level management (archive/mute/delete/clear) stays on `MessageController`/`MessageRoutes`**, alongside `markChatAsRead`, since it already takes the same `{sessionId, number}` shape as the read-state methods it sits next to.
+- **`IWhatsappAdapter` is corrected to declare the methods `RunAdapterBaileys` already implements** (`markChatAsRead`, `sendTyping`, `markAsRead` are implemented but were never added to the interface) before adding the new methods, so the adapter contract stays authoritative and new methods aren't added to an already-inconsistent interface.
+
+## Risks / Trade-offs
+
+- [Baileys is on a release candidate (`7.0.0-rc.9`)] → Every new socket call used here was verified to exist in the installed `.d.ts` files rather than assumed from Baileys' stable-branch docs; no version bump is part of this change, so no new RC-only surface is introduced beyond what's already a dependency.
+- [Group operations are destructive/visible to other participants (removing a member, changing subject) and hard to undo] → Scope group-management to the standard admin actions Baileys exposes 1:1 with the WhatsApp client UI, and require the same tenant/session validation as every other route; no bulk or automated group operations are added.
+- [`markAsRead`'s fallback path (message key not found in our own log) can still send a best-effort synthesized key for 1:1 chats] → This matches current behavior for chats the service hasn't observed yet (e.g., historical backfill gaps) and only degrades to "no-op-safe" rather than throwing; group chats without a stored key simply return an explicit error instead of silently sending a broken key.
+- [Expanding `IWhatsappAdapter`/`RunAdapterBaileys`/`BaileysRepository` in one change touches a wide file surface] → Grouped into independent, sequentially-shippable phases in `tasks.md` (fix first, reactions next, then the rest) so a partial rollout is safe at every step.
+
+## Open Questions
+
+- Should reaction/star/pin state be mirrored back into the local `Message` Prisma model (e.g., an `is_starred`/`reactions` column), or is a pure pass-through (no local read model for these) acceptable for now? This design assumes pass-through only, matching how `deleteMessage`/`editMessage` behave today (no local mirroring).
+- Should group management require an explicit allow-list/role check beyond tenant/session ownership (e.g., only allow group admin actions if the session's WhatsApp account is actually a group admin), or is surfacing Baileys' own permission errors (thrown when the account lacks admin rights) sufficient?
