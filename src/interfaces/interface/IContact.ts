@@ -14,4 +14,19 @@ export interface IContact {
     sessionId: string,
     number: string,
   ): Promise<{ exists: boolean }>;
+  blockContact(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+  ): Promise<void>;
+  unblockContact(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+  ): Promise<void>;
+  getContactStatus(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+  ): Promise<{ status: string }>;
 }

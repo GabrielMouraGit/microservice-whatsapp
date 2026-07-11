@@ -42,4 +42,34 @@ export class ContactController implements IContact {
 
     return await this.runAdapter.checkExists(sessionId, number);
   }
+
+  async blockContact(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+  ): Promise<void> {
+    await this.validateSession(tenant_id, sessionId);
+
+    await this.runAdapter.blockContact(sessionId, number);
+  }
+
+  async unblockContact(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+  ): Promise<void> {
+    await this.validateSession(tenant_id, sessionId);
+
+    await this.runAdapter.unblockContact(sessionId, number);
+  }
+
+  async getContactStatus(
+    tenant_id: string,
+    sessionId: string,
+    number: string,
+  ): Promise<{ status: string }> {
+    await this.validateSession(tenant_id, sessionId);
+
+    return await this.runAdapter.getContactStatus(sessionId, number);
+  }
 }

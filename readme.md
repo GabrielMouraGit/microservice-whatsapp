@@ -76,3 +76,31 @@ Baileys
 
 Amanhã:
 API oficial WhatsApp
+
+## Endpoints (prefixo `/whatsapp-service`)
+
+Além das rotas de sessão/tenant/envio de mídia já existentes, o serviço expõe:
+
+### Mensagens (`/api/v1/message`)
+- `POST /send-reaction`, `POST /remove-reaction` — reagir/remover reação de uma mensagem
+- `POST /star-message`, `POST /pin-message`, `POST /delete-for-me` — ações sobre uma mensagem existente
+- `POST /send-recording`, `POST /subscribe-presence` — presença ligada a um chat
+- `POST /archive-chat`, `POST /mute-chat`, `POST /delete-chat`, `POST /clear-chat` — gestão do chat
+- `POST /send-location`, `POST /send-contact`, `POST /send-sticker`, `POST /send-poll` — conteúdo rico
+- `POST /mark-as-read`, `POST /mark-chat-as-read` — marcação de leitura (corrigido para usar a chave original da mensagem, funcionando também em grupos)
+
+### Contatos (`/api/v1/contact`)
+- `POST /block`, `POST /unblock` — bloquear/desbloquear um contato
+- `POST /status` — buscar o status ("recado") de um contato
+
+### Sessão (`/api/v1/session`)
+- `POST /presence` — definir presença online/offline da conta conectada
+- `POST /profile-name`, `POST /profile-status`, `POST /profile-picture`, `POST /profile-picture/remove` — gerenciar o próprio perfil
+
+### Grupos (`/api/v1/group`)
+- `POST /create`, `POST /leave`
+- `POST /add-participants`, `POST /remove-participants`, `POST /promote-participants`, `POST /demote-participants`
+- `POST /update-subject`, `POST /update-description`, `POST /metadata`
+- `POST /invite-code`, `POST /revoke-invite`, `POST /join`
+
+Todas as rotas exigem o mesmo header de autenticação por tenant já usado nas rotas existentes, e validam que a `session_id` pertence ao tenant autenticado antes de tocar no socket do Baileys.

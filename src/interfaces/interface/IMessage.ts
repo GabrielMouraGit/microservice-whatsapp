@@ -92,4 +92,116 @@ export interface IMessage {
     number: string;
     messageId: string;
   }): Promise<void>;
+
+  // Reactions
+  sendReaction(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    emoji: string;
+  }): Promise<void>;
+  removeReaction(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+  }): Promise<void>;
+
+  // Message actions
+  starMessage(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    fromMe: boolean;
+    star: boolean;
+  }): Promise<void>;
+  pinMessage(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    pin: boolean;
+  }): Promise<void>;
+  deleteMessageForMe(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    fromMe: boolean;
+  }): Promise<void>;
+
+  // Presence
+  sendRecording(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void>;
+  subscribePresence(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void>;
+
+  // Chat management
+  archiveChat(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    archive: boolean;
+  }): Promise<void>;
+  muteChat(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    durationMs: number | null;
+  }): Promise<void>;
+  deleteChat(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void>;
+  clearChat(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void>;
+
+  // Rich content messages
+  sendLocation(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    latitude: number;
+    longitude: number;
+    name?: string;
+    address?: string;
+    quoted_id?: string;
+  }): Promise<{ message_id: string }>;
+  sendContactCard(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    displayName: string;
+    vcard: string;
+    quoted_id?: string;
+  }): Promise<{ message_id: string }>;
+  sendSticker(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    url: string;
+    isAnimated?: boolean;
+    quoted_id?: string;
+  }): Promise<{ message_id: string }>;
+  sendPoll(data: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    name: string;
+    values: string[];
+    selectableCount: number;
+    quoted_id?: string;
+  }): Promise<{ message_id: string }>;
 }

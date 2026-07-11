@@ -66,4 +66,65 @@ export async function MessageRoutes(net: FastifyInstance) {
     "/api/v1/message/mark-as-read",
     adapters.httpMarkAsRead.bind(adapters),
   );
+
+  // Reactions
+  net.post(
+    "/api/v1/message/send-reaction",
+    adapters.httpSendReaction.bind(adapters),
+  );
+  net.post(
+    "/api/v1/message/remove-reaction",
+    adapters.httpRemoveReaction.bind(adapters),
+  );
+
+  // Message actions
+  net.post(
+    "/api/v1/message/star-message",
+    adapters.httpStarMessage.bind(adapters),
+  );
+  net.post(
+    "/api/v1/message/pin-message",
+    adapters.httpPinMessage.bind(adapters),
+  );
+  net.post(
+    "/api/v1/message/delete-for-me",
+    adapters.httpDeleteMessageForMe.bind(adapters),
+  );
+
+  // Presence
+  net.post(
+    "/api/v1/message/send-recording",
+    adapters.httpSendRecording.bind(adapters),
+  );
+  net.post(
+    "/api/v1/message/subscribe-presence",
+    adapters.httpSubscribePresence.bind(adapters),
+  );
+
+  // Chat management
+  net.post(
+    "/api/v1/message/archive-chat",
+    adapters.httpArchiveChat.bind(adapters),
+  );
+  net.post("/api/v1/message/mute-chat", adapters.httpMuteChat.bind(adapters));
+  net.post(
+    "/api/v1/message/delete-chat",
+    adapters.httpDeleteChat.bind(adapters),
+  );
+  net.post("/api/v1/message/clear-chat", adapters.httpClearChat.bind(adapters));
+
+  // Rich content messages
+  net.post(
+    "/api/v1/message/send-location",
+    adapters.httpSendLocation.bind(adapters),
+  );
+  net.post(
+    "/api/v1/message/send-contact",
+    adapters.httpSendContactCard.bind(adapters),
+  );
+  net.post(
+    "/api/v1/message/send-sticker",
+    adapters.httpSendSticker.bind(adapters),
+  );
+  net.post("/api/v1/message/send-poll", adapters.httpSendPoll.bind(adapters));
 }

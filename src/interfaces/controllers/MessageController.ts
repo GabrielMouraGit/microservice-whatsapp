@@ -217,4 +217,241 @@ export class MessageController implements IMessage {
       params.messageId,
     );
   }
+
+  async sendReaction(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    emoji: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.sendReaction(
+      params.sessionId,
+      params.number,
+      params.messageId,
+      params.emoji,
+    );
+  }
+
+  async removeReaction(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.removeReaction(
+      params.sessionId,
+      params.number,
+      params.messageId,
+    );
+  }
+
+  async starMessage(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    fromMe: boolean;
+    star: boolean;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.starMessage(
+      params.sessionId,
+      params.number,
+      params.messageId,
+      params.fromMe,
+      params.star,
+    );
+  }
+
+  async pinMessage(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    pin: boolean;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.pinMessage(
+      params.sessionId,
+      params.number,
+      params.messageId,
+      params.pin,
+    );
+  }
+
+  async deleteMessageForMe(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    messageId: string;
+    fromMe: boolean;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.deleteMessageForMe(
+      params.sessionId,
+      params.number,
+      params.messageId,
+      params.fromMe,
+    );
+  }
+
+  async sendRecording(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.sendRecording(params.sessionId, params.number);
+  }
+
+  async subscribePresence(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.subscribePresence(params.sessionId, params.number);
+  }
+
+  async archiveChat(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    archive: boolean;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.archiveChat(
+      params.sessionId,
+      params.number,
+      params.archive,
+    );
+  }
+
+  async muteChat(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    durationMs: number | null;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.muteChat(
+      params.sessionId,
+      params.number,
+      params.durationMs,
+    );
+  }
+
+  async deleteChat(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.deleteChat(params.sessionId, params.number);
+  }
+
+  async clearChat(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+  }): Promise<void> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    await this.runAdapter.clearChat(params.sessionId, params.number);
+  }
+
+  async sendLocation(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    latitude: number;
+    longitude: number;
+    name?: string;
+    address?: string;
+    quoted_id?: string;
+  }): Promise<{ message_id: string }> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    return await this.runAdapter.sendLocation(
+      params.sessionId,
+      params.number,
+      params.latitude,
+      params.longitude,
+      params.name,
+      params.address,
+      params.quoted_id,
+    );
+  }
+
+  async sendContactCard(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    displayName: string;
+    vcard: string;
+    quoted_id?: string;
+  }): Promise<{ message_id: string }> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    return await this.runAdapter.sendContactCard(
+      params.sessionId,
+      params.number,
+      params.displayName,
+      params.vcard,
+      params.quoted_id,
+    );
+  }
+
+  async sendSticker(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    url: string;
+    isAnimated?: boolean;
+    quoted_id?: string;
+  }): Promise<{ message_id: string }> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    return await this.runAdapter.sendSticker(
+      params.sessionId,
+      params.number,
+      params.url,
+      params.isAnimated,
+      params.quoted_id,
+    );
+  }
+
+  async sendPoll(params: {
+    tenant_id: string;
+    sessionId: string;
+    number: string;
+    name: string;
+    values: string[];
+    selectableCount: number;
+    quoted_id?: string;
+  }): Promise<{ message_id: string }> {
+    await this.validateSession(params.tenant_id, params.sessionId);
+
+    return await this.runAdapter.sendPoll(
+      params.sessionId,
+      params.number,
+      params.name,
+      params.values,
+      params.selectableCount,
+      params.quoted_id,
+    );
+  }
 }

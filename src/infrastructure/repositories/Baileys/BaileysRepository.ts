@@ -2,8 +2,13 @@ import { SessionManager } from "../SessionManager";
 import { BaileysConnector } from "./BaileysConnector";
 import {
   AnyMessageContent,
+  GroupMetadata,
+  ParticipantAction,
   WAMessage,
+  WAMessageKey,
+  WAPresence,
   WASocket,
+  proto,
 } from "@whiskeysockets/baileys";
 import { MessageEventLogRepository } from "../MessageEventLogRepository";
 import { MessageRepository } from "../MessageRepository";
@@ -73,6 +78,33 @@ export class BaileysRepository {
         }
       });
     });
+  }
+
+  private toJid(number: string): string {
+    if (number.includes("@")) return number;
+
+    return `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+  }
+
+  private async resolveLastMessageKey(
+    jid: string,
+  ): Promise<{
+    key: WAMessageKey;
+    messageTimestamp: WAMessage["messageTimestamp"];
+  } | null> {
+    const lastMessage =
+      await this.messageRepository.getMessagesLastMessageByChatId(jid);
+
+    if (!lastMessage) return null;
+
+    const eventLog = await this.messageEventLogRepository.findByMessageId(
+      lastMessage.toDTO().id,
+    );
+    const waMessage = eventLog?.payload as WAMessage | undefined;
+
+    if (!waMessage?.key || !waMessage?.messageTimestamp) return null;
+
+    return { key: waMessage.key, messageTimestamp: waMessage.messageTimestamp };
   }
 
   private async buildQuotedMessage(quoted_id?: string) {
@@ -454,27 +486,16 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
   }
   async markChatAsRead(sessionId: string, number: string) {
     const sock = await this.getReadySocket(sessionId);
-    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+    const jid = this.toJid(number);
 
-    const lastMessage = await this.messageRepository.getMessagesLastMessageByChatId(jid);
-
-    if (!lastMessage) {
-      await sock.chatModify({ markRead: true, lastMessages: [] }, jid);
-      return;
-    }
-
-    const eventLog = await this.messageEventLogRepository.findByMessageId(lastMessage.toDTO().id);
-    const waMessage = eventLog?.payload as WAMessage | undefined;
-
-    if (!waMessage?.key || !waMessage?.messageTimestamp) {
-      await sock.chatModify({ markRead: true, lastMessages: [] }, jid);
-      return;
-    }
+    const resolved = await this.resolveLastMessageKey(jid);
 
     await sock.chatModify(
       {
         markRead: true,
-        lastMessages: [{ key: waMessage.key, messageTimestamp: waMessage.messageTimestamp }],
+        lastMessages: resolved
+          ? [{ key: resolved.key, messageTimestamp: resolved.messageTimestamp }]
+          : [],
       },
       jid,
     );
@@ -491,7 +512,22 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
 
   async markAsRead(sessionId: string, number: string, messageId: string) {
     const sock = await this.getReadySocket(sessionId);
-    const jid = `${number.replace(/\D/g, "")}@s.whatsapp.net`;
+    const jid = this.toJid(number);
+
+    const eventLog =
+      await this.messageEventLogRepository.findByMessageId(messageId);
+    const waMessage = eventLog?.payload as WAMessage | undefined;
+
+    if (waMessage?.key) {
+      await sock.readMessages([waMessage.key]);
+      return;
+    }
+
+    if (jid.endsWith("@g.us")) {
+      throw new Error(
+        `Não foi possível marcar a mensagem ${messageId} como lida: chave original da mensagem de grupo não encontrada`,
+      );
+    }
 
     await sock.readMessages([{ remoteJid: jid, id: messageId, fromMe: false }]);
   }
@@ -542,5 +578,505 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
         `Failed to edit message: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+  }
+
+  // ---- Reactions ----
+
+  async sendReaction(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    emoji: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const eventLog =
+      await this.messageEventLogRepository.findByMessageId(messageId);
+    const key = (eventLog?.payload as WAMessage | undefined)?.key;
+
+    if (!key) {
+      throw new Error(`Mensagem ${messageId} não encontrada para reagir`);
+    }
+
+    await sock.sendMessage(jid, { react: { text: emoji, key } });
+  }
+
+  async removeReaction(sessionId: string, number: string, messageId: string) {
+    await this.sendReaction(sessionId, number, messageId, "");
+  }
+
+  // ---- Message actions (star / pin / delete-for-me) ----
+
+  async starMessage(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    fromMe: boolean,
+    star: boolean,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    await sock.chatModify(
+      { star: { messages: [{ id: messageId, fromMe }], star } },
+      jid,
+    );
+  }
+
+  async pinMessage(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    pin: boolean,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const eventLog =
+      await this.messageEventLogRepository.findByMessageId(messageId);
+    const key = (eventLog?.payload as WAMessage | undefined)?.key;
+
+    if (!key) {
+      throw new Error(`Mensagem ${messageId} não encontrada para fixar`);
+    }
+
+    await sock.sendMessage(jid, {
+      pin: key,
+      type: pin
+        ? proto.PinInChat.Type.PIN_FOR_ALL
+        : proto.PinInChat.Type.UNPIN_FOR_ALL,
+    });
+  }
+
+  async deleteMessageForMe(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    fromMe: boolean,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const eventLog =
+      await this.messageEventLogRepository.findByMessageId(messageId);
+    const waMessage = eventLog?.payload as WAMessage | undefined;
+
+    const key: WAMessageKey = waMessage?.key ?? {
+      remoteJid: jid,
+      id: messageId,
+      fromMe,
+    };
+    const timestamp = waMessage?.messageTimestamp
+      ? Number(waMessage.messageTimestamp)
+      : Math.floor(Date.now() / 1000);
+
+    await sock.chatModify(
+      { deleteForMe: { key, timestamp, deleteMedia: false } },
+      jid,
+    );
+  }
+
+  // ---- Presence ----
+
+  async sendRecording(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    await sock.sendPresenceUpdate("recording", jid);
+    await new Promise((r) => setTimeout(r, 5000));
+    await sock.sendPresenceUpdate("paused", jid);
+  }
+
+  async setOwnPresence(sessionId: string, presence: WAPresence) {
+    const sock = await this.getReadySocket(sessionId);
+
+    await sock.sendPresenceUpdate(presence);
+  }
+
+  async subscribePresence(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    await sock.presenceSubscribe(jid);
+  }
+
+  // ---- Chat management ----
+
+  async archiveChat(sessionId: string, number: string, archive: boolean) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const resolved = await this.resolveLastMessageKey(jid);
+
+    await sock.chatModify(
+      {
+        archive,
+        lastMessages: resolved
+          ? [{ key: resolved.key, messageTimestamp: resolved.messageTimestamp }]
+          : [],
+      },
+      jid,
+    );
+  }
+
+  async muteChat(sessionId: string, number: string, durationMs: number | null) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    await sock.chatModify({ mute: durationMs }, jid);
+  }
+
+  async deleteChat(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const resolved = await this.resolveLastMessageKey(jid);
+
+    await sock.chatModify(
+      {
+        delete: true,
+        lastMessages: resolved
+          ? [{ key: resolved.key, messageTimestamp: resolved.messageTimestamp }]
+          : [],
+      },
+      jid,
+    );
+  }
+
+  async clearChat(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const resolved = await this.resolveLastMessageKey(jid);
+
+    await sock.chatModify(
+      {
+        clear: true,
+        lastMessages: resolved
+          ? [{ key: resolved.key, messageTimestamp: resolved.messageTimestamp }]
+          : [],
+      },
+      jid,
+    );
+  }
+
+  // ---- Rich content messages ----
+
+  async sendLocationMessage(
+    sessionId: string,
+    number: string,
+    latitude: number,
+    longitude: number,
+    name?: string,
+    address?: string,
+    quoted_id?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const content = {
+      location: {
+        degreesLatitude: latitude,
+        degreesLongitude: longitude,
+        name,
+        address,
+      },
+    };
+
+    const result = await this.sendMessageCore(sock, jid, content, quoted_id);
+    if (!result?.key?.id) {
+      throw new Error("Failed to send location message");
+    }
+
+    return { message_id: result.key.id };
+  }
+
+  async sendContactMessage(
+    sessionId: string,
+    number: string,
+    displayName: string,
+    vcard: string,
+    quoted_id?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const content = {
+      contacts: {
+        displayName,
+        contacts: [{ displayName, vcard }],
+      },
+    };
+
+    const result = await this.sendMessageCore(sock, jid, content, quoted_id);
+    if (!result?.key?.id) {
+      throw new Error("Failed to send contact message");
+    }
+
+    return { message_id: result.key.id };
+  }
+
+  async sendStickerMessage(
+    sessionId: string,
+    number: string,
+    url: string,
+    isAnimated?: boolean,
+    quoted_id?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const content = {
+      sticker: { url },
+      isAnimated: !!isAnimated,
+    };
+
+    const result = await this.sendMessageCore(sock, jid, content, quoted_id);
+    if (!result?.key?.id) {
+      throw new Error("Failed to send sticker message");
+    }
+
+    return { message_id: result.key.id };
+  }
+
+  async sendPollMessage(
+    sessionId: string,
+    number: string,
+    name: string,
+    values: string[],
+    selectableCount: number,
+    quoted_id?: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    const content = {
+      poll: { name, values, selectableCount },
+    };
+
+    const result = await this.sendMessageCore(sock, jid, content, quoted_id);
+    if (!result?.key?.id) {
+      throw new Error("Failed to send poll message");
+    }
+
+    return { message_id: result.key.id };
+  }
+
+  // ---- Contact & own-profile management ----
+
+  async blockContact(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    await sock.updateBlockStatus(jid, "block");
+  }
+
+  async unblockContact(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    await sock.updateBlockStatus(jid, "unblock");
+  }
+
+  async getContactStatus(sessionId: string, number: string) {
+    const sock = await this.getReadySocket(sessionId);
+    const jid = this.toJid(number);
+
+    try {
+      const [result] = (await sock.fetchStatus(jid)) || [];
+      const status = (
+        result as { status?: { status?: string } } | undefined
+      )?.status?.status;
+
+      return { status: status || "" };
+    } catch {
+      return { status: "" };
+    }
+  }
+
+  async updateProfileName(sessionId: string, name: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    await sock.updateProfileName(name);
+  }
+
+  async updateProfileStatus(sessionId: string, status: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    await sock.updateProfileStatus(status);
+  }
+
+  async updateProfilePicture(sessionId: string, url: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    if (!sock.user?.id) {
+      throw new Error("Sessão não conectada");
+    }
+
+    await sock.updateProfilePicture(sock.user.id, { url });
+  }
+
+  async removeProfilePicture(sessionId: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    if (!sock.user?.id) {
+      throw new Error("Sessão não conectada");
+    }
+
+    await sock.removeProfilePicture(sock.user.id);
+  }
+
+  // ---- Group management ----
+
+  private mapGroupMetadata(metadata: GroupMetadata) {
+    return {
+      id: metadata.id,
+      subject: metadata.subject,
+      description: metadata.desc || "",
+      owner: metadata.owner || "",
+      participants: metadata.participants.map((p) => ({
+        jid: p.id,
+        isAdmin: !!p.admin,
+        isSuperAdmin: p.admin === "superadmin",
+      })),
+    };
+  }
+
+  private async updateGroupParticipants(
+    sessionId: string,
+    groupJid: string,
+    participantNumbers: string[],
+    action: ParticipantAction,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const participants = participantNumbers.map((n) => this.toJid(n));
+
+    const result = await sock.groupParticipantsUpdate(
+      groupJid,
+      participants,
+      action,
+    );
+
+    return result.map((r) => ({ jid: r.jid || "", status: r.status }));
+  }
+
+  async createGroup(
+    sessionId: string,
+    subject: string,
+    participantNumbers: string[],
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+    const participants = participantNumbers.map((n) => this.toJid(n));
+
+    const metadata = await sock.groupCreate(subject, participants);
+
+    return this.mapGroupMetadata(metadata);
+  }
+
+  async addParticipants(
+    sessionId: string,
+    groupJid: string,
+    participantNumbers: string[],
+  ) {
+    return this.updateGroupParticipants(
+      sessionId,
+      groupJid,
+      participantNumbers,
+      "add",
+    );
+  }
+
+  async removeParticipants(
+    sessionId: string,
+    groupJid: string,
+    participantNumbers: string[],
+  ) {
+    return this.updateGroupParticipants(
+      sessionId,
+      groupJid,
+      participantNumbers,
+      "remove",
+    );
+  }
+
+  async promoteParticipants(
+    sessionId: string,
+    groupJid: string,
+    participantNumbers: string[],
+  ) {
+    return this.updateGroupParticipants(
+      sessionId,
+      groupJid,
+      participantNumbers,
+      "promote",
+    );
+  }
+
+  async demoteParticipants(
+    sessionId: string,
+    groupJid: string,
+    participantNumbers: string[],
+  ) {
+    return this.updateGroupParticipants(
+      sessionId,
+      groupJid,
+      participantNumbers,
+      "demote",
+    );
+  }
+
+  async updateGroupSubject(sessionId: string, groupJid: string, subject: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    await sock.groupUpdateSubject(groupJid, subject);
+  }
+
+  async updateGroupDescription(
+    sessionId: string,
+    groupJid: string,
+    description: string,
+  ) {
+    const sock = await this.getReadySocket(sessionId);
+
+    await sock.groupUpdateDescription(groupJid, description);
+  }
+
+  async getGroupMetadata(sessionId: string, groupJid: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    const metadata = await sock.groupMetadata(groupJid);
+
+    return this.mapGroupMetadata(metadata);
+  }
+
+  async getGroupInviteCode(sessionId: string, groupJid: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    const code = await sock.groupInviteCode(groupJid);
+
+    return { inviteCode: code || "" };
+  }
+
+  async revokeGroupInvite(sessionId: string, groupJid: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    const code = await sock.groupRevokeInvite(groupJid);
+
+    return { inviteCode: code || "" };
+  }
+
+  async joinGroupViaInvite(sessionId: string, code: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    const groupJid = await sock.groupAcceptInvite(code);
+
+    return { groupJid: groupJid || "" };
+  }
+
+  async leaveGroup(sessionId: string, groupJid: string) {
+    const sock = await this.getReadySocket(sessionId);
+
+    await sock.groupLeave(groupJid);
   }
 }

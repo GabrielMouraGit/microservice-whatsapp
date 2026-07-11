@@ -33,4 +33,13 @@ export async function ContactRoutes(net: FastifyInstance) {
     "/api/v1/contact/check-exists",
     adapters.httpCheckExists.bind(adapters),
   );
+  net.post("/api/v1/contact/block", adapters.httpBlockContact.bind(adapters));
+  net.post(
+    "/api/v1/contact/unblock",
+    adapters.httpUnblockContact.bind(adapters),
+  );
+  net.post(
+    "/api/v1/contact/status",
+    adapters.httpGetContactStatus.bind(adapters),
+  );
 }

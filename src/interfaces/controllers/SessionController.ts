@@ -112,4 +112,61 @@ export class SessionController implements ISession {
     }
     return await this.runAdapter.isConnected(session.id);
   }
+
+  private async assertOwnedSession(tenant_id: string, session_id: string) {
+    const session = await this.sessionRepository.findById(session_id);
+
+    if (!session || session.tenant_id != tenant_id) {
+      throw new DomainError("Session não encontrada");
+    }
+  }
+
+  async setPresence(
+    tenant_id: string,
+    session_id: string,
+    presence: "available" | "unavailable",
+  ): Promise<void> {
+    await this.assertOwnedSession(tenant_id, session_id);
+
+    await this.runAdapter.setOwnPresence(session_id, presence);
+  }
+
+  async updateProfileName(
+    tenant_id: string,
+    session_id: string,
+    name: string,
+  ): Promise<void> {
+    await this.assertOwnedSession(tenant_id, session_id);
+
+    await this.runAdapter.updateProfileName(session_id, name);
+  }
+
+  async updateProfileStatus(
+    tenant_id: string,
+    session_id: string,
+    status: string,
+  ): Promise<void> {
+    await this.assertOwnedSession(tenant_id, session_id);
+
+    await this.runAdapter.updateProfileStatus(session_id, status);
+  }
+
+  async updateProfilePicture(
+    tenant_id: string,
+    session_id: string,
+    url: string,
+  ): Promise<void> {
+    await this.assertOwnedSession(tenant_id, session_id);
+
+    await this.runAdapter.updateProfilePicture(session_id, url);
+  }
+
+  async removeProfilePicture(
+    tenant_id: string,
+    session_id: string,
+  ): Promise<void> {
+    await this.assertOwnedSession(tenant_id, session_id);
+
+    await this.runAdapter.removeProfilePicture(session_id);
+  }
 }

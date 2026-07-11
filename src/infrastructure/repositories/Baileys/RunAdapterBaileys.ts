@@ -172,4 +172,272 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
   ): Promise<void> {
     await this.repository.markAsRead(sessionId, number, messageId);
   }
+
+  // Reactions
+  async sendReaction(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<void> {
+    await this.repository.sendReaction(sessionId, number, messageId, emoji);
+  }
+  async removeReaction(
+    sessionId: string,
+    number: string,
+    messageId: string,
+  ): Promise<void> {
+    await this.repository.removeReaction(sessionId, number, messageId);
+  }
+
+  // Message actions
+  async starMessage(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    fromMe: boolean,
+    star: boolean,
+  ): Promise<void> {
+    await this.repository.starMessage(
+      sessionId,
+      number,
+      messageId,
+      fromMe,
+      star,
+    );
+  }
+  async pinMessage(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    pin: boolean,
+  ): Promise<void> {
+    await this.repository.pinMessage(sessionId, number, messageId, pin);
+  }
+  async deleteMessageForMe(
+    sessionId: string,
+    number: string,
+    messageId: string,
+    fromMe: boolean,
+  ): Promise<void> {
+    await this.repository.deleteMessageForMe(
+      sessionId,
+      number,
+      messageId,
+      fromMe,
+    );
+  }
+
+  // Presence
+  async sendRecording(sessionId: string, number: string): Promise<void> {
+    await this.repository.sendRecording(sessionId, number);
+  }
+  async setOwnPresence(
+    sessionId: string,
+    presence: "available" | "unavailable",
+  ): Promise<void> {
+    await this.repository.setOwnPresence(sessionId, presence);
+  }
+  async subscribePresence(sessionId: string, number: string): Promise<void> {
+    await this.repository.subscribePresence(sessionId, number);
+  }
+
+  // Chat management
+  async archiveChat(
+    sessionId: string,
+    number: string,
+    archive: boolean,
+  ): Promise<void> {
+    await this.repository.archiveChat(sessionId, number, archive);
+  }
+  async muteChat(
+    sessionId: string,
+    number: string,
+    durationMs: number | null,
+  ): Promise<void> {
+    await this.repository.muteChat(sessionId, number, durationMs);
+  }
+  async deleteChat(sessionId: string, number: string): Promise<void> {
+    await this.repository.deleteChat(sessionId, number);
+  }
+  async clearChat(sessionId: string, number: string): Promise<void> {
+    await this.repository.clearChat(sessionId, number);
+  }
+
+  // Rich content messages
+  async sendLocation(
+    sessionId: string,
+    number: string,
+    latitude: number,
+    longitude: number,
+    name?: string,
+    address?: string,
+    quoted_id?: string,
+  ) {
+    return this.repository.sendLocationMessage(
+      sessionId,
+      number,
+      latitude,
+      longitude,
+      name,
+      address,
+      quoted_id,
+    );
+  }
+  async sendContactCard(
+    sessionId: string,
+    number: string,
+    displayName: string,
+    vcard: string,
+    quoted_id?: string,
+  ) {
+    return this.repository.sendContactMessage(
+      sessionId,
+      number,
+      displayName,
+      vcard,
+      quoted_id,
+    );
+  }
+  async sendSticker(
+    sessionId: string,
+    number: string,
+    url: string,
+    isAnimated?: boolean,
+    quoted_id?: string,
+  ) {
+    return this.repository.sendStickerMessage(
+      sessionId,
+      number,
+      url,
+      isAnimated,
+      quoted_id,
+    );
+  }
+  async sendPoll(
+    sessionId: string,
+    number: string,
+    name: string,
+    values: string[],
+    selectableCount: number,
+    quoted_id?: string,
+  ) {
+    return this.repository.sendPollMessage(
+      sessionId,
+      number,
+      name,
+      values,
+      selectableCount,
+      quoted_id,
+    );
+  }
+
+  // Contact & own-profile management
+  async blockContact(sessionId: string, number: string): Promise<void> {
+    await this.repository.blockContact(sessionId, number);
+  }
+  async unblockContact(sessionId: string, number: string): Promise<void> {
+    await this.repository.unblockContact(sessionId, number);
+  }
+  async getContactStatus(sessionId: string, number: string) {
+    return this.repository.getContactStatus(sessionId, number);
+  }
+  async updateProfileName(sessionId: string, name: string): Promise<void> {
+    await this.repository.updateProfileName(sessionId, name);
+  }
+  async updateProfileStatus(sessionId: string, status: string): Promise<void> {
+    await this.repository.updateProfileStatus(sessionId, status);
+  }
+  async updateProfilePicture(sessionId: string, url: string): Promise<void> {
+    await this.repository.updateProfilePicture(sessionId, url);
+  }
+  async removeProfilePicture(sessionId: string): Promise<void> {
+    await this.repository.removeProfilePicture(sessionId);
+  }
+
+  // Group management
+  async createGroup(
+    sessionId: string,
+    subject: string,
+    participantNumbers: string[],
+  ) {
+    return this.repository.createGroup(sessionId, subject, participantNumbers);
+  }
+  async addParticipants(
+    sessionId: string,
+    groupJid: string,
+    participantNumbers: string[],
+  ) {
+    return this.repository.addParticipants(
+      sessionId,
+      groupJid,
+      participantNumbers,
+    );
+  }
+  async removeParticipants(
+    sessionId: string,
+    groupJid: string,
+    participantNumbers: string[],
+  ) {
+    return this.repository.removeParticipants(
+      sessionId,
+      groupJid,
+      participantNumbers,
+    );
+  }
+  async promoteParticipants(
+    sessionId: string,
+    groupJid: string,
+    participantNumbers: string[],
+  ) {
+    return this.repository.promoteParticipants(
+      sessionId,
+      groupJid,
+      participantNumbers,
+    );
+  }
+  async demoteParticipants(
+    sessionId: string,
+    groupJid: string,
+    participantNumbers: string[],
+  ) {
+    return this.repository.demoteParticipants(
+      sessionId,
+      groupJid,
+      participantNumbers,
+    );
+  }
+  async updateGroupSubject(
+    sessionId: string,
+    groupJid: string,
+    subject: string,
+  ): Promise<void> {
+    await this.repository.updateGroupSubject(sessionId, groupJid, subject);
+  }
+  async updateGroupDescription(
+    sessionId: string,
+    groupJid: string,
+    description: string,
+  ): Promise<void> {
+    await this.repository.updateGroupDescription(
+      sessionId,
+      groupJid,
+      description,
+    );
+  }
+  async getGroupMetadata(sessionId: string, groupJid: string) {
+    return this.repository.getGroupMetadata(sessionId, groupJid);
+  }
+  async getGroupInviteCode(sessionId: string, groupJid: string) {
+    return this.repository.getGroupInviteCode(sessionId, groupJid);
+  }
+  async revokeGroupInvite(sessionId: string, groupJid: string) {
+    return this.repository.revokeGroupInvite(sessionId, groupJid);
+  }
+  async joinGroupViaInvite(sessionId: string, code: string) {
+    return this.repository.joinGroupViaInvite(sessionId, code);
+  }
+  async leaveGroup(sessionId: string, groupJid: string): Promise<void> {
+    await this.repository.leaveGroup(sessionId, groupJid);
+  }
 }

@@ -31,4 +31,25 @@ export interface ISession {
     tenant_id: string,
     session_id: string,
   ): Promise<{ connected: boolean }>;
+  setPresence(
+    tenant_id: string,
+    session_id: string,
+    presence: "available" | "unavailable",
+  ): Promise<void>;
+  updateProfileName(
+    tenant_id: string,
+    session_id: string,
+    name: string,
+  ): Promise<void>;
+  updateProfileStatus(
+    tenant_id: string,
+    session_id: string,
+    status: string,
+  ): Promise<void>;
+  updateProfilePicture(
+    tenant_id: string,
+    session_id: string,
+    url: string,
+  ): Promise<void>;
+  removeProfilePicture(tenant_id: string, session_id: string): Promise<void>;
 }

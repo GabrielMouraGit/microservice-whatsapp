@@ -42,4 +42,21 @@ export async function SessionRoutes(net: FastifyInstance) {
     "/api/v1/session/new-qr-code",
     adapters.httpNewQRCode.bind(adapters),
   );
+  net.post("/api/v1/session/presence", adapters.httpSetPresence.bind(adapters));
+  net.post(
+    "/api/v1/session/profile-name",
+    adapters.httpUpdateProfileName.bind(adapters),
+  );
+  net.post(
+    "/api/v1/session/profile-status",
+    adapters.httpUpdateProfileStatus.bind(adapters),
+  );
+  net.post(
+    "/api/v1/session/profile-picture",
+    adapters.httpUpdateProfilePicture.bind(adapters),
+  );
+  net.post(
+    "/api/v1/session/profile-picture/remove",
+    adapters.httpRemoveProfilePicture.bind(adapters),
+  );
 }

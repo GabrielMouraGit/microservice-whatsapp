@@ -96,4 +96,68 @@ export class SessionAdapters {
 
     return await this.controller.isConnected(tenant_id, session_id);
   }
+
+  async httpSetPresence(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const { session_id, presence } = request.body as {
+      session_id: string;
+      presence: "available" | "unavailable";
+    };
+
+    await this.controller.setPresence(tenant_id, session_id, presence);
+
+    return { success: true };
+  }
+
+  async httpUpdateProfileName(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const { session_id, name } = request.body as {
+      session_id: string;
+      name: string;
+    };
+
+    await this.controller.updateProfileName(tenant_id, session_id, name);
+
+    return { success: true };
+  }
+
+  async httpUpdateProfileStatus(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const { session_id, status } = request.body as {
+      session_id: string;
+      status: string;
+    };
+
+    await this.controller.updateProfileStatus(tenant_id, session_id, status);
+
+    return { success: true };
+  }
+
+  async httpUpdateProfilePicture(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const { session_id, url } = request.body as {
+      session_id: string;
+      url: string;
+    };
+
+    await this.controller.updateProfilePicture(tenant_id, session_id, url);
+
+    return { success: true };
+  }
+
+  async httpRemoveProfilePicture(request: FastifyRequest) {
+    const tenant_id = request.auth.tenant_id;
+
+    const { session_id } = request.body as {
+      session_id: string;
+    };
+
+    await this.controller.removeProfilePicture(tenant_id, session_id);
+
+    return { success: true };
+  }
 }
