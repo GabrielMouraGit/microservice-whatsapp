@@ -1,7 +1,24 @@
 import { ConfirmChannel, ConsumeMessage } from "amqplib";
 import { RabbitMQConnection } from "./RabbitMQConnection";
+import { RabbitMQRegistry } from "./RabbitMQRegistry";
 
 const MAX_RETRIES = 20;
+
+//
+// delay = ttl * multiplier^retryCount, capped at maxTtl. multiplier
+// defaults to 1 (flat interval, today's behavior) when not configured.
+//
+function computeRetryDelayMs(
+  retryCount: number,
+  retry?: { ttl: number; multiplier?: number; maxTtl?: number },
+): number {
+  const ttl = retry?.ttl ?? 30000;
+  const multiplier = retry?.multiplier ?? 1;
+
+  const delay = ttl * Math.pow(multiplier, retryCount);
+
+  return retry?.maxTtl ? Math.min(delay, retry.maxTtl) : delay;
+}
 
 export class RabbitMQConsumer {
   async consume(
@@ -11,7 +28,13 @@ export class RabbitMQConsumer {
       msg: ConsumeMessage,
       channel: ConfirmChannel,
     ) => Promise<void>,
+    maxRetries: number = MAX_RETRIES,
+    onDeadLetter?: (data: any, msg: ConsumeMessage) => Promise<void> | void,
   ) {
+    const retryConfig = RabbitMQRegistry.flatMap((ex) => ex.queues).find(
+      (q) => q.name === queue,
+    )?.retry;
+
     const conn = await RabbitMQConnection.getInstance();
 
     await conn.registerConsumer(queue, async (channel) => {
@@ -42,9 +65,12 @@ export class RabbitMQConsumer {
           } catch (err: any) {
             console.error("❌ erro no handler:", err);
 
-            if (retryCount < MAX_RETRIES) {
+            if (retryCount < maxRetries) {
+              const delayMs = computeRetryDelayMs(retryCount, retryConfig);
+
               channel.sendToQueue(`${queue}.retry`, msg.content, {
                 persistent: true,
+                expiration: String(delayMs),
                 headers: {
                   ...headers,
                   "x-retry-count": retryCount + 1,
@@ -69,6 +95,12 @@ export class RabbitMQConsumer {
             await channel.waitForConfirms();
 
             channel.ack(msg);
+
+            try {
+              await onDeadLetter?.(content, msg);
+            } catch (dlqErr) {
+              console.error("❌ erro no onDeadLetter:", dlqErr);
+            }
           }
         },
         { noAck: false },

@@ -58,16 +58,16 @@ export class RabbitMQBootstrap {
         //
         // RETRY QUEUE
         //
+        // Sem x-message-ttl fixo na fila: o TTL é definido por mensagem
+        // (RabbitMQConsumer envia "expiration" calculado com backoff
+        // exponencial), então cada tentativa pode esperar mais que a
+        // anterior antes de voltar para a fila principal.
+        //
         if (retry) {
           await channel.assertQueue(retry.queue, {
             durable: true,
 
             arguments: {
-              //
-              // TEMPO DE ESPERA
-              //
-              "x-message-ttl": retry.ttl,
-
               //
               // TTL EXPIROU -> VOLTA PRA MAIN
               //

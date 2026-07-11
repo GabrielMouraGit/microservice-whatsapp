@@ -18,11 +18,13 @@ import { AppEvents } from "container";
 import { DomainEventDispatcher } from "@/infrastructure/events/DomainEventDispatcher";
 import { EventLog } from "@/domain/aggregates/EventLog";
 import { ITypeSessionEvents } from "@/domain/events/ITypeSessionEvents";
-import { $config } from "@config/config";
+import { RabbitMQPublisher } from "@/infrastructure/messaging/rabbit/RabbitMQPublisher";
+import { stageMediaBuffer } from "./MediaStaging";
 
 export class BaileysConnector {
   private qrResolvers = new Map<string, (qr: string) => void>();
   private reconnecting = new Set<string>();
+  private rabbitMQPublisher = new RabbitMQPublisher();
 
   constructor(
     private sockets: SessionManager,
@@ -254,9 +256,22 @@ export class BaileysConnector {
 
           log.log("messages.upsert.raw", msg);
 
-          const { url } = await this.uploadMessageMedia(sock, msg, tenantId);
+          // upload real (se houver mídia) acontece de forma assíncrona/durável
+          // via RabbitMQ; não bloqueia o processamento das próximas mensagens
+          const staged = await this.stageAndEnqueueMedia(
+            sock,
+            msg,
+            tenantId,
+            sessionId,
+          );
 
-          const mapped = BaileysToWhatpyMapper.map(msg, url);
+          if (staged) {
+            log.done();
+
+            continue;
+          }
+
+          const mapped = BaileysToWhatpyMapper.map(msg);
 
           if (!mapped) continue;
 
@@ -341,94 +356,116 @@ export class BaileysConnector {
     return null;
   }
 
-  async uploadMessageMedia(
+  //
+  // Stages a message's media (if any) and enqueues its upload as a durable
+  // RabbitMQ job. Returns true when media was found and enqueued (the caller
+  // should not map/emit the message itself — the worker does that once the
+  // upload succeeds); returns false when the message has no media, so the
+  // caller should fall back to mapping/emitting it synchronously with no url.
+  // Used by both the live `messages.upsert` handler and the pending-message
+  // resync flow (`ReSyncAllMessagensUseCase`).
+  //
+  async stageAndEnqueueMedia(
     sock: WASocket,
     msg: WAMessage,
-    tenant_id: string,
-  ): Promise<{ url: string }> {
-    try {
-      if (!msg.message) {
-        return { url: "" };
-      }
+    tenantId: string,
+    sessionId: string,
+  ): Promise<boolean> {
+    const staged = await this.stageMessageMedia(sock, msg);
 
-      if (msg.message?.viewOnceMessage || msg.message?.viewOnceMessageV2) {
-        return { url: "" };
-      }
-
-      const extracted = this.extractMediaMessage(msg.message);
-
-      if (!extracted) {
-        return { url: "" };
-      }
-
-      const { media, type } = extracted;
-
-      if (!media.mediaKey || !media.directPath) {
-        return { url: "" };
-      }
-
-      const buffer = await downloadMediaMessage(
-        msg,
-        "buffer",
-        {},
-        {
-          logger: pino({ level: "silent" }),
-          reuploadRequest: sock.updateMediaMessage,
-        },
-      );
-
-      if (!buffer) {
-        return { url: "" };
-      }
-
-      const mimeType = media.mimetype || "application/octet-stream";
-      const extension = mimeType.split("/")[1]?.split(";")[0] || "bin";
-
-      let fileName = `${type}-${Date.now()}.${extension}`; //media.fileName;
-
-      // remove caracteres inválidos
-      fileName = fileName.replace(/[^\w.-]/g, "_");
-
-      const formData = new FormData();
-
-      formData.append(
-        "file",
-        new Blob([new Uint8Array(buffer)], {
-          type: mimeType,
-        }),
-        fileName,
-      );
-
-      formData.append("path", `public/whatsapp/${msg.key.id}`);
-
-      const response = await fetch(
-        `${$config.MICROSERVICE_STORAGE}/storage/api/v1/file/add-item`,
-        {
-          method: "POST",
-          headers: {
-            "x-backend-token": $config.MICROSERVICE_STORAGE_TOKEN,
-            "x-tenant-id": tenant_id,
-          },
-          body: formData,
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`erro upload: ${response.status}`);
-      }
-
-      const uploaded = await response.json();
-
-      return {
-        url: uploaded.url,
-      };
-    } catch (err) {
-      console.error("erro upload media", err);
-
-      return {
-        url: "",
-      };
+    if (!staged) {
+      return false;
     }
+
+    await this.enqueueMediaUpload(staged, msg, tenantId, sessionId);
+
+    return true;
+  }
+
+  //
+  // Download + decrypt the media buffer (local, fast, already resilient via
+  // Baileys' own reuploadRequest) and stage it to disk. Returns null when the
+  // message has no (recoverable) media — same skip conditions the old inline
+  // upload had — in which case bindMessages falls back to mapping the message
+  // with no media url, unchanged from before.
+  //
+  private async stageMessageMedia(
+    sock: WASocket,
+    msg: WAMessage,
+  ): Promise<StagedMedia | null> {
+    if (!msg.message) {
+      return null;
+    }
+
+    if (msg.message?.viewOnceMessage || msg.message?.viewOnceMessageV2) {
+      return null;
+    }
+
+    const extracted = this.extractMediaMessage(msg.message);
+
+    if (!extracted) {
+      return null;
+    }
+
+    const { media, type } = extracted;
+
+    if (!media.mediaKey || !media.directPath) {
+      return null;
+    }
+
+    const buffer = await downloadMediaMessage(
+      msg,
+      "buffer",
+      {},
+      {
+        logger: pino({ level: "silent" }),
+        reuploadRequest: sock.updateMediaMessage,
+      },
+    );
+
+    if (!buffer) {
+      return null;
+    }
+
+    const mimeType = media.mimetype || "application/octet-stream";
+    const extension = mimeType.split("/")[1]?.split(";")[0] || "bin";
+
+    let fileName = `${type}-${Date.now()}.${extension}`;
+
+    // remove caracteres inválidos
+    fileName = fileName.replace(/[^\w.-]/g, "_");
+
+    const filePath = stageMediaBuffer(
+      msg.key.id || fileName,
+      type,
+      Buffer.from(buffer),
+      extension,
+    );
+
+    return { filePath, mimeType, fileName };
+  }
+
+  //
+  // Publishes the actual storage upload as a durable RabbitMQ job — the
+  // network-dependent step that used to be an inline fetch() swallowing
+  // errors. RabbitMQConsumer's retry/DLQ machinery (media.upload.queue)
+  // takes it from here.
+  //
+  private async enqueueMediaUpload(
+    staged: StagedMedia,
+    msg: WAMessage,
+    tenantId: string,
+    sessionId: string,
+  ): Promise<void> {
+    await this.rabbitMQPublisher.publishExchange("media.exchange", "media.upload", {
+      filePath: staged.filePath,
+      mimeType: staged.mimeType,
+      fileName: staged.fileName,
+      storagePath: `public/whatsapp/${msg.key.id}`,
+      tenantId,
+      sessionId,
+      msg,
+    });
   }
 
   async logout(sessionId: string) {
@@ -513,3 +550,9 @@ type ExtractedMedia = {
     | proto.Message.IDocumentMessage
     | proto.Message.IStickerMessage;
 } | null;
+
+export type StagedMedia = {
+  filePath: string;
+  mimeType: string;
+  fileName: string;
+};

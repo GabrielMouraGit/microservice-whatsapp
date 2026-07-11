@@ -30,20 +30,25 @@ export class ReSyncAllMessagensUseCase {
 
         const sock = this.baileysConnector.getSocket(msg.sessionId);
 
-        let url = "";
-
         if (sock) {
-          const result = await this.baileysConnector.uploadMessageMedia(
+          const staged = await this.baileysConnector.stageAndEnqueueMedia(
             sock,
             messagePayload,
             msg.tenantId,
+            msg.sessionId,
           );
-          url = result.url;
+
+          if (staged) {
+            // upload real acontece de forma assíncrona/durável via RabbitMQ;
+            // o worker emite message.received quando o upload for concluído
+            await this.messageEventLogRepository.markAsProcessed(msg.id);
+            continue;
+          }
         } else {
           console.log(`⚠️  sessão ${msg.sessionId} não conectada — sincronizando sem mídia`);
         }
 
-        const mapped = BaileysToWhatpyMapper.map(messagePayload, url);
+        const mapped = BaileysToWhatpyMapper.map(messagePayload);
 
         if (!mapped) {
           await this.messageEventLogRepository.markAsProcessed(msg.id);

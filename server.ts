@@ -10,7 +10,9 @@ import { registerEventHandlers } from "@/infrastructure/events/RegisterEvents";
 import { MessageRoutes } from "@/interfaces/routes/MessageRoutes";
 import { ContactRoutes } from "@/interfaces/routes/ContactRoutes";
 import { TenantRoutes } from "@/interfaces/routes/TenantRoutes";
+import { GroupRoutes } from "@/interfaces/routes/GroupRoutes";
 import { bootstrapRabbitMQ } from "@/infrastructure/messaging/rabbit/RabbitMQInitApp";
+import { startMediaUploadWorker } from "@/workers/mediaUpload.worker";
 
 const PREFIX_SERVICE = "/whatsapp-service";
 
@@ -35,6 +37,7 @@ fastify.register(SessionRoutes, { prefix: PREFIX_SERVICE });
 fastify.register(MessageRoutes, { prefix: PREFIX_SERVICE });
 fastify.register(ContactRoutes, { prefix: PREFIX_SERVICE });
 fastify.register(TenantRoutes, { prefix: PREFIX_SERVICE });
+fastify.register(GroupRoutes, { prefix: PREFIX_SERVICE });
 
 fastify.get(`${PREFIX_SERVICE}/public/api/v1/status`, async () => {
   return { status: true };
@@ -71,6 +74,8 @@ async function start() {
     await bootstrapRabbitMQ();
 
     registerEventHandlers();
+
+    await startMediaUploadWorker();
 
     const repositorySession = new SessionRepositoryPrisma();
 
