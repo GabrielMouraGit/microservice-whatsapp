@@ -1,0 +1,34 @@
+## Why
+
+Today, when a photo or audio (or video/document/sticker) message arrives, `BaileysConnector.uploadMessageMedia` downloads the media buffer and immediately `fetch`es it to the storage microservice (`MICROSERVICE_STORAGE`) *inline*, inside the `messages.upsert` handler. If that call fails for any reason (storage service down, network blip, timeout), the `catch` block swallows the error and returns `{ url: "" }` — `BaileysConnector.ts:425-431`. `BaileysToWhatpyMapper.map` only builds the image/video/audio/document/sticker sub-object `if (url)` (e.g. `BaileysToWhatpyMapper.ts:66,106,115`), so a media message with no url maps to `null` and is silently `continue`d past in `bindMessages` (`BaileysConnector.ts:261`) — it is never saved (`messageRepo.saveMessage` is never reached) and never published to `messages.exchange`. **The media is permanently lost, with no log, no retry, and no trace**, any time the storage microservice has a hiccup. The project already has a proven durable-retry/DLQ pattern built on RabbitMQ (`RabbitMQRegistry`/`RabbitMQBootstrap`/`RabbitMQConsumer`, used today for `messages.exchange`); this change applies that same pattern to the media upload step so a storage outage delays delivery instead of destroying the message.
+
+## What Changes
+
+- Split media handling into two phases: (1) download the WhatsApp-encrypted media buffer and stage it to local disk — fast, local, already resilient via Baileys' own `reuploadRequest` — and (2) upload the staged file to the storage microservice — the actual failure-prone, network-dependent step.
+- Phase 2 moves off the synchronous `messages.upsert` handler and onto a new durable RabbitMQ queue (`media.exchange` / `media.upload.queue`), following the exact retry+DLQ topology already defined in `RabbitMQRegistry`/`RabbitMQBootstrap`.
+- A new consumer/worker performs the actual upload to `MICROSERVICE_STORAGE`. On failure it throws, and the existing retry-count-header + requeue-to-`.retry` mechanism (`RabbitMQConsumer.ts`) automatically retries with backoff; only after exhausting retries does the job land in `media.upload.queue.dlq`, with the staged file preserved (not deleted) for later inspection/replay.
+- Only once the upload succeeds does the worker build the mapped webhook payload (`BaileysToWhatpyMapper.map`) and emit `message.received`, which continues into the existing `OnMessageReceivedHandler` → `saveMessage` → `messages.exchange` pipeline unchanged. **Non-media (text-only) messages are unaffected — they keep their current synchronous path.**
+- Extend the retry ceiling/backoff so it can tolerate a storage outage of realistic length (today's global `MAX_RETRIES = 20` at a fixed 30s TTL in `RabbitMQConsumer`/`RabbitMQRegistry` caps out around 10 minutes, which is too short for "storage was down for an hour, retry when it's back"): make max-retries/backoff configurable per queue instead of a single hardcoded constant. Retries also back off **exponentially** per queue (e.g. `media.upload.queue`: 1min → 2min → 4min → ... capped at 30min) instead of hammering the storage microservice at a fixed interval the whole time it's down — `messages.queue` is unaffected and keeps its current flat 30s retry.
+- **BREAKING**: none — this is an internal reliability change; the outward webhook/message shape is unchanged, only the timing (media messages may now arrive slightly later than the text message, or later than they would have during a storage outage, instead of not arriving at all).
+
+## Capabilities
+
+### New Capabilities
+- `resilient-media-delivery`: The system SHALL stage inbound WhatsApp media locally and upload it to the storage microservice through a durable, retrying RabbitMQ pipeline, so that a storage-service outage delays media message delivery instead of losing it.
+
+### Modified Capabilities
+(none — `rich-content-messages` covers outbound sends of location/contact/sticker/poll; this change is about the inbound receive-and-persist path and does not change any existing requirement there)
+
+## Impact
+
+- **Code**:
+  - `src/infrastructure/repositories/Baileys/BaileysConnector.ts` — split `uploadMessageMedia` into "stage to disk" (sync) + "enqueue upload job" (replaces the inline `fetch`); `bindMessages` no longer awaits the upload/mapping for media messages.
+  - `src/infrastructure/messaging/rabbit/RabbitMQRegistry.ts` — add `media.exchange` / `media.upload.queue` topology entry (retry + DLQ), with an exponential-backoff retry policy (`ttl`/`multiplier`/`maxTtl`) longer-lived than the current `messages.queue` entry (which is unaffected, `multiplier` defaults to 1).
+  - `src/infrastructure/messaging/rabbit/RabbitMQConsumer.ts` — make `MAX_RETRIES` configurable per call instead of a fixed module constant, and compute each retry's delay from the registry's `ttl`/`multiplier`/`maxTtl` (set as a per-message `expiration`, not a fixed queue-level TTL), so the media queue backs off and tolerates longer outages than the messages queue.
+  - `src/infrastructure/messaging/rabbit/RabbitMQBootstrap.ts` — retry queues no longer declare a fixed `x-message-ttl` argument (a queue-level TTL would cap every message at the same value, defeating backoff); delay is now set per-message by the consumer instead.
+  - New: `src/workers/mediaUpload.worker.ts` — consumes `media.upload.queue` (via the generic `RabbitMQConsumer.consume()` helper), performs the storage upload, builds the mapped message, and emits `message.received` on success. Started explicitly from `server.ts`'s `start()`, since the existing `src/workers/messagesUpsert.worker.ts` turns out to be dead code today (see `design.md` — it's never actually invoked by any script or entrypoint), so there is no existing worker-process convention to reuse.
+  - New: local staging directory (e.g. `./session/media-pending/`) — already-bind-mounted path pattern (see `docker-compose.yml` volumes), so staged files survive container restarts and queued jobs are not orphaned by a redeploy.
+- **Config**: no new env vars required — reuses `MICROSERVICE_STORAGE`, `MICROSERVICE_STORAGE_TOKEN`, `RABBITMQ_URL` already present in `.env`/`env-example`/`docker-compose.yml`.
+- **No Prisma/schema changes** — `Message`/`MessageImage`/`MessageAudio`/etc. rows are still only created once the upload succeeds and a real `link` is known (their `link` column stays non-nullable); this change only makes the "try to get a link" step durable and retried instead of a single best-effort inline call.
+- **Ops**: DLQ'd media jobs need an operational answer (manual replay tooling or an admin endpoint) — flagged as a follow-up decision in `design.md`, not blocking this change's happy-path goal.
+- **Out of scope**: this change does not address WhatsApp's own media URL/key expiry window (Baileys' `reuploadRequest` already handles that at download time); it only hardens the second hop (our service → storage microservice).
