@@ -7,16 +7,19 @@ import { MessageEventLogRepository } from "@/infrastructure/repositories/Message
 import { ContactController } from "../controllers/ContactController";
 import { ContactAdapters } from "../adapters/ContactAdapters";
 import { MessageRepository } from "@/infrastructure/repositories/MessageRepository";
+import { ContactRepositoryPrisma } from "@/infrastructure/repositories/ContactRepositoryPrisma";
 
 const repositorySession = new SessionRepositoryPrisma();
 const messageEventLogRepository = new MessageEventLogRepository();
 const messageRepository = new MessageRepository();
+const contactRepository = new ContactRepositoryPrisma();
 
 const baileysRepository = new BaileysRepository(
   baileysConnector,
   sessionManager,
   messageEventLogRepository,
   messageRepository,
+  contactRepository,
 );
 
 const runAdapter = new RunAdapterBaileys(baileysRepository);

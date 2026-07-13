@@ -124,8 +124,8 @@ export class RunAdapterBaileys implements IWhatsappAdapter {
   async logout(sessionId: string) {
     return this.repository.logout(sessionId);
   }
-  async getContact(sessionId: string, number: string) {
-    return this.repository.getContact(sessionId, number);
+  async getContact(sessionId: string, number: string, tenant_id: string) {
+    return this.repository.getContact(sessionId, number, tenant_id);
   }
   async checkExists(sessionId: string, number: string) {
     return this.repository.checkExists(sessionId, number);

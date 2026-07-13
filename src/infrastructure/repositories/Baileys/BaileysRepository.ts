@@ -12,6 +12,8 @@ import {
 } from "@whiskeysockets/baileys";
 import { MessageEventLogRepository } from "../MessageEventLogRepository";
 import { MessageRepository } from "../MessageRepository";
+import { IContactRepository } from "@/domain/repositories/IContactRepository";
+import { $config } from "@config/config";
 import ffmpeg from "fluent-ffmpeg";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -24,6 +26,7 @@ export class BaileysRepository {
     private sessions: SessionManager,
     private messageEventLogRepository: MessageEventLogRepository,
     private messageRepository: MessageRepository,
+    private contactRepository: IContactRepository,
   ) {}
 
   async createSession(sessionId: string, tenantId: string) {
@@ -322,7 +325,7 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
       message_id: result?.key.id,
     };
   }
-  async getContact(sessionId: string, number: string) {
+  async getContact(sessionId: string, number: string, tenant_id: string) {
     const sock = await this.getReadySocket(sessionId);
     let contact = await this.findContact(sessionId, number);
 
@@ -341,15 +344,15 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
       }
     }
 
-    let profilePicUrl: string;
-
-    try {
-      profilePicUrl =
-        (await sock.profilePictureUrl(contact.jid, "image")) || "";
-    } catch {
-      profilePicUrl = "";
-    }
     const nameContact = await this.messageRepository.getNameUserBy(contact.jid);
+
+    const profilePicUrl = await this.resolveDurableProfilePicUrl(
+      sock,
+      tenant_id,
+      number,
+      nameContact,
+      contact.jid,
+    );
 
     return {
       jid: contact.jid,
@@ -357,6 +360,119 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
       exists: contact.exists,
       profilePicUrl,
     };
+  }
+
+  // Contatos podem trocar de foto no WhatsApp sem que a gente saiba — sem
+  // isso, um contato ficaria com a mesma foto no storage para sempre.
+  private static readonly PROFILE_PHOTO_REFRESH_TTL_MS =
+    90 * 24 * 60 * 60 * 1000; // ~3 meses
+
+  private isPhotoStale(photo_synced_at: Date | null): boolean {
+    if (!photo_synced_at) return true;
+
+    return (
+      Date.now() - photo_synced_at.getTime() >
+      BaileysRepository.PROFILE_PHOTO_REFRESH_TTL_MS
+    );
+  }
+
+  //
+  // getContact must never return WhatsApp's own CDN URL for a profile
+  // picture — it's a signed link that stops resolving after a while. Once a
+  // contact's photo has been uploaded to the storage microservice, the
+  // cached Contact.url_photo is reused instead of hitting WhatsApp again,
+  // until it's older than PROFILE_PHOTO_REFRESH_TTL_MS — then we try to
+  // refresh it, falling back to the stale cached URL if the refresh fails.
+  //
+  private async resolveDurableProfilePicUrl(
+    sock: WASocket,
+    tenant_id: string,
+    phone: string,
+    name: string,
+    jid: string,
+  ): Promise<string> {
+    const cached = await this.contactRepository.findByPhone(tenant_id, phone);
+
+    if (cached && !this.isPhotoStale(cached.photo_synced_at)) {
+      return cached.url_photo;
+    }
+
+    let waProfilePicUrl: string;
+
+    try {
+      waProfilePicUrl = (await sock.profilePictureUrl(jid, "image")) || "";
+    } catch {
+      waProfilePicUrl = "";
+    }
+
+    if (!waProfilePicUrl) {
+      return cached?.url_photo || "";
+    }
+
+    try {
+      const storageUrl = await this.uploadProfilePicture(
+        waProfilePicUrl,
+        tenant_id,
+        phone,
+      );
+
+      await this.contactRepository.upsertPhoto(
+        tenant_id,
+        phone,
+        name,
+        storageUrl,
+      );
+
+      return storageUrl;
+    } catch (err) {
+      console.error("erro ao migrar foto de perfil para o storage:", err);
+      return cached?.url_photo || "";
+    }
+  }
+
+  private async uploadProfilePicture(
+    waProfilePicUrl: string,
+    tenant_id: string,
+    phone: string,
+  ): Promise<string> {
+    const imageResponse = await fetch(waProfilePicUrl);
+
+    if (!imageResponse.ok) {
+      throw new Error(`erro ao baixar foto de perfil: ${imageResponse.status}`);
+    }
+
+    const buffer = Buffer.from(await imageResponse.arrayBuffer());
+    const mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
+    const extension = mimeType.split("/")[1]?.split(";")[0] || "jpg";
+
+    const formData = new FormData();
+
+    formData.append(
+      "file",
+      new Blob([new Uint8Array(buffer)], { type: mimeType }),
+      `${phone}.${extension}`,
+    );
+    formData.append("path", `public/whatsapp/contacts/${tenant_id}/${phone}`);
+
+    const response = await fetch(
+      `${$config.MICROSERVICE_STORAGE}/storage/api/v1/file/add-item`,
+      {
+        method: "POST",
+        headers: {
+          "x-backend-token": $config.MICROSERVICE_STORAGE_TOKEN,
+          "x-tenant-id": tenant_id,
+        },
+        body: formData,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`erro upload foto de perfil: ${response.status}`);
+    }
+
+    const uploaded = await response.json();
+
+    return uploaded.url;
   }
 
   private async findContact(sessionId: string, number: string) {

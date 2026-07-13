@@ -65,6 +65,7 @@ export interface IWhatsappAdapter {
   getContact(
     sessionId: string,
     number: string,
+    tenant_id: string,
   ): Promise<{
     jid: string;
     name: string;

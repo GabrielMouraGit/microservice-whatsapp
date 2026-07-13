@@ -29,7 +29,7 @@ export class ContactController implements IContact {
   }> {
     await this.validateSession(tenant_id, sessionId);
 
-    return await this.runAdapter.getContact(sessionId, number);
+    return await this.runAdapter.getContact(sessionId, number, tenant_id);
   }
   async checkExists(
     tenant_id: string,

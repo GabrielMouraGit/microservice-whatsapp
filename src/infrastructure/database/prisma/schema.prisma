@@ -38,13 +38,15 @@ enum MessageType {
 
 model Contact {
   id    String @id @default(uuid())
-  phone String @unique
+  phone String
   name  String
   url_photo String?
+  photo_synced_at DateTime?
 
-  tenant_id                        String  
+  tenant_id                        String
   tenant   Tenant @relation(fields: [tenant_id], references: [id])
 
+  @@unique([tenant_id, phone])
 }
 
 

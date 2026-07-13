@@ -12,6 +12,7 @@ import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRe
 import { BaileysRepository } from "@/infrastructure/repositories/Baileys/BaileysRepository";
 import { RunAdapterBaileys } from "@/infrastructure/repositories/Baileys/RunAdapterBaileys";
 import { MessageRepository } from "@/infrastructure/repositories/MessageRepository";
+import { ContactRepositoryPrisma } from "@/infrastructure/repositories/ContactRepositoryPrisma";
 import { MessageController } from "@/interfaces/controllers/MessageController";
 import { RabbitMQPublisher } from "@/infrastructure/messaging/rabbit/RabbitMQPublisher";
 import { RabbitMQDlqReprocessor } from "@/infrastructure/messaging/rabbit/RabbitMQDlqReprocessor";
@@ -43,12 +44,14 @@ export const rabbitMQDlqReprocessor = new RabbitMQDlqReprocessor();
 
 const repositorySession = new SessionRepositoryPrisma();
 const messageRepository = new MessageRepository();
+const contactRepository = new ContactRepositoryPrisma();
 
 const baileysRepository = new BaileysRepository(
   baileysConnector,
   sessionManager,
   messageEventLogRepository,
   messageRepository,
+  contactRepository,
 );
 
 const runAdapter = new RunAdapterBaileys(baileysRepository);
