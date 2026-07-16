@@ -33,6 +33,7 @@ enum MessageType {
   audio
   voice
   document
+  sticker
   contact
   reply
   system
