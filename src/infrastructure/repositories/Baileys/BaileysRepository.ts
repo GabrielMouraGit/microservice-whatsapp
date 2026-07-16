@@ -367,6 +367,12 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
   private static readonly PROFILE_PHOTO_REFRESH_TTL_MS =
     90 * 24 * 60 * 60 * 1000; // ~3 meses
 
+  // Nenhuma dessas chamadas pode travar getContact indefinidamente — se
+  // demorar demais, cai no fallback de foto em cache já existente.
+  private static readonly PROFILE_PHOTO_QUERY_TIMEOUT_MS = 8_000;
+  private static readonly PROFILE_PHOTO_FETCH_TIMEOUT_MS = 8_000;
+  private static readonly PROFILE_PHOTO_UPLOAD_TIMEOUT_MS = 15_000;
+
   private isPhotoStale(photo_synced_at: Date | null): boolean {
     if (!photo_synced_at) return true;
 
@@ -400,7 +406,12 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
     let waProfilePicUrl: string;
 
     try {
-      waProfilePicUrl = (await sock.profilePictureUrl(jid, "image")) || "";
+      waProfilePicUrl =
+        (await sock.profilePictureUrl(
+          jid,
+          "image",
+          BaileysRepository.PROFILE_PHOTO_QUERY_TIMEOUT_MS,
+        )) || "";
     } catch {
       waProfilePicUrl = "";
     }
@@ -435,7 +446,11 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
     tenant_id: string,
     phone: string,
   ): Promise<string> {
-    const imageResponse = await fetch(waProfilePicUrl);
+    const imageResponse = await fetch(waProfilePicUrl, {
+      signal: AbortSignal.timeout(
+        BaileysRepository.PROFILE_PHOTO_FETCH_TIMEOUT_MS,
+      ),
+    });
 
     if (!imageResponse.ok) {
       throw new Error(`erro ao baixar foto de perfil: ${imageResponse.status}`);
@@ -463,6 +478,9 @@ private async  convertToOpus(inputBuffer: Buffer): Promise<Buffer> {
           "x-tenant-id": tenant_id,
         },
         body: formData,
+        signal: AbortSignal.timeout(
+          BaileysRepository.PROFILE_PHOTO_UPLOAD_TIMEOUT_MS,
+        ),
       },
     );
 
