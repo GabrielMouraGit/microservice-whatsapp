@@ -20,6 +20,7 @@ export class WhatsappMessageMapper {
       video: msg.video,
       audio: msg.audio ?? msg.voice,
       document: msg.document,
+      contact: msg.contact,
       context: msg.context,
     });
   }

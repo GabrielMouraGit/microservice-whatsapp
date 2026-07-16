@@ -21,6 +21,7 @@ export class MessageRepository implements IMessageRepository {
           audio: true,
           document: true,
           context: true,
+          contact: true,
         },
       });
 
@@ -100,6 +101,15 @@ export class MessageRepository implements IMessageRepository {
               quoted_id: msg.context.quoted_id,
               quoted_author: msg.context.quoted_author,
               quoted_type: msg.context.quoted_type,
+            }
+          : undefined,
+
+        contact: msg.contact
+          ? {
+              id: msg.contact.id,
+              display_name: msg.contact.display_name,
+              vcard: msg.contact.vcard,
+              phone: msg.contact.phone,
             }
           : undefined,
       });
@@ -198,6 +208,17 @@ export class MessageRepository implements IMessageRepository {
                 },
               }
             : undefined,
+
+          contact: dto.contact
+            ? {
+                create: {
+                  ...dto.contact,
+                  tenant: {
+                    connect: { id: tenant_id },
+                  },
+                },
+              }
+            : undefined,
         },
         update: {}, // ou atualiza campos se quiser
       });
@@ -224,6 +245,7 @@ export class MessageRepository implements IMessageRepository {
           audio: true,
           document: true,
           context: true,
+          contact: true,
         },
       });
 
@@ -302,6 +324,15 @@ export class MessageRepository implements IMessageRepository {
               quoted_id: msg.context.quoted_id,
               quoted_author: msg.context.quoted_author,
               quoted_type: msg.context.quoted_type,
+            }
+          : undefined,
+
+        contact: msg.contact
+          ? {
+              id: msg.contact.id,
+              display_name: msg.contact.display_name,
+              vcard: msg.contact.vcard,
+              phone: msg.contact.phone,
             }
           : undefined,
       });

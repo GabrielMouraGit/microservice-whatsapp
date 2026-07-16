@@ -14,6 +14,7 @@ model Tenant {
   created_at    DateTime @default(now())
 
   MessageContext  MessageContext[]
+  MessageContact  MessageContact[]
   MessageDocument  MessageDocument[]
   MessageAudio  MessageAudio[]
   MessageVideo  MessageVideo[]
@@ -32,6 +33,7 @@ enum MessageType {
   audio
   voice
   document
+  contact
   reply
   system
 }
@@ -71,8 +73,9 @@ model Message {
   audio    MessageAudio?
   document MessageDocument?
   context  MessageContext?
+  contact  MessageContact?
 
-  tenant_id                        String  
+  tenant_id                        String
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 }
 
@@ -165,7 +168,20 @@ model MessageContext {
   quoted_type   String
 
   message Message @relation(fields: [message_id], references: [id], onDelete: Cascade)
-  tenant_id                        String  
+  tenant_id                        String
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+}
+
+model MessageContact {
+  id         String @id @default(uuid())
+  message_id String @unique
+
+  display_name String
+  vcard        String
+  phone        String?
+
+  message Message @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  tenant_id                        String
   tenant Tenant @relation(fields: [tenant_id], references: [id])
 }
 

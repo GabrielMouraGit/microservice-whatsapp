@@ -374,6 +374,13 @@ export interface WhatsAppMessageSticker {
   preview?: string;
 }
 
+export interface WhatsAppMessageContact {
+  id: string;
+  display_name: string;
+  vcard: string;
+  phone?: string;
+}
+
 export interface WhatsAppMessage {
   id: string;
   from_me: boolean;
@@ -385,7 +392,8 @@ export interface WhatsAppMessage {
     | "video"
     | "audio"
     | "reply"
-    | "sticker";
+    | "sticker"
+    | "contact";
   chat_id: string;
   timestamp: number;
   status: string;
@@ -399,6 +407,7 @@ export interface WhatsAppMessage {
   reply?: WhatsAppMessageReply;
   audio?: WhatsAppMessageAudio;
   sticker?: WhatsAppMessageAudio;
+  contact?: WhatsAppMessageContact;
   context?: WhatsAppMessageContext;
   from: string;
   from_name: string;

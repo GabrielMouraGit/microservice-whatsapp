@@ -23,6 +23,10 @@ import {
   MessageContext,
   messageContextSchema,
 } from "../value-objects/Message/MessageContext";
+import {
+  MessageContact,
+  messageContactSchema,
+} from "../value-objects/Message/MessageContact";
 import { DomainError } from "../utils/DomainError";
 
 export const messageTypeSchema = z.enum([
@@ -32,6 +36,7 @@ export const messageTypeSchema = z.enum([
   "audio",
   "voice",
   "document",
+  "contact",
   "reply",
   "system",
 ]);
@@ -55,6 +60,7 @@ export const messageSchema = z.object({
   audio: messageAudioSchema.optional(),
   document: messageDocumentSchema.optional(),
   context: messageContextSchema.optional(),
+  contact: messageContactSchema.optional(),
   created_at: z.coerce.date().optional(),
 });
 
@@ -77,6 +83,7 @@ export class Message {
   private _audio?: MessageAudio;
   private _document?: MessageDocument;
   private _context?: MessageContext;
+  private _contact?: MessageContact;
 
   private _timestamp: Date;
   private _created_at?: Date;
@@ -101,13 +108,15 @@ export class Message {
     if (props.audio) this._audio = new MessageAudio(props.audio);
     if (props.document) this._document = new MessageDocument(props.document);
     if (props.context) this._context = new MessageContext(props.context);
+    if (props.contact) this._contact = new MessageContact(props.contact);
     if (
       !this._text &&
       !this._image &&
       !this._video &&
       !this._audio &&
       !this._document &&
-      !this._context
+      !this._context &&
+      !this._contact
     ) {
       throw new DomainError("Monst dto = message.toDTOconteúdo");
     }
@@ -171,6 +180,10 @@ export class Message {
     return this._context;
   }
 
+  get contact() {
+    return this._contact;
+  }
+
   get message() {
     switch (this._type) {
       case "text":
@@ -189,6 +202,9 @@ export class Message {
 
       case "document":
         return this._document;
+
+      case "contact":
+        return this._contact;
 
       case "system":
         return null;
@@ -222,6 +238,7 @@ export class Message {
       audio: this._audio?.toDTO(),
       document: this._document?.toDTO(),
       context: this._context?.toDTO(),
+      contact: this._contact?.toDTO(),
     };
   }
 }

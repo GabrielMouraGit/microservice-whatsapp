@@ -2,6 +2,7 @@ import {
   WebhookWhatsapp,
   WhatsAppMessage,
   WhatsAppMessageAudio,
+  WhatsAppMessageContact,
   WhatsAppMessageContext,
   WhatsAppMessageDocument,
   WhatsAppMessageImage,
@@ -130,7 +131,43 @@ export class BaileysToWhatpyMapper {
       };
     }
 
+    if (m.contactMessage) {
+      return {
+        ...base,
+        type: "contact",
+        contact: this.buildContactMessage(m.contactMessage),
+        context: this.buildContext(m.contactMessage.contextInfo),
+      };
+    }
+
     return null;
+  }
+
+  private static buildContactMessage(
+    contact: proto.Message.IContactMessage,
+  ): WhatsAppMessageContact {
+    return {
+      id: v4(),
+      display_name: contact.displayName || "",
+      vcard: contact.vcard || "",
+      phone: this.extractPhoneFromVcard(contact.vcard),
+    };
+  }
+
+  private static extractPhoneFromVcard(vcard?: string | null): string {
+    if (!vcard) return "";
+
+    const waidMatch = vcard.match(/waid=(\d+)/);
+    if (waidMatch) return waidMatch[1];
+
+    const telLine = vcard
+      .split("\n")
+      .find((line) => line.toUpperCase().includes("TEL"));
+
+    if (!telLine) return "";
+
+    const value = telLine.split(":").pop()?.trim();
+    return value || "";
   }
 
   private static buildStickerMessage(
