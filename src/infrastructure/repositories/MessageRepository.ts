@@ -227,6 +227,44 @@ export class MessageRepository implements IMessageRepository {
       throw new DomainError("Failed to save message");
     }
   }
+  async updateMessageText(
+    messageId: string,
+    tenantId: string,
+    sessionId: string,
+    newText: string,
+  ): Promise<boolean> {
+    try {
+      const { count } = await $prismaClient.message.updateMany({
+        where: {
+          id: messageId,
+          tenant_id: tenantId,
+          session_id: sessionId,
+        },
+        data: {
+          edited: true,
+          edited_at: new Date(),
+        },
+      });
+
+      if (count === 0) return false;
+
+      await $prismaClient.messageText.updateMany({
+        where: {
+          message_id: messageId,
+          tenant_id: tenantId,
+        },
+        data: {
+          body: newText,
+        },
+      });
+
+      return true;
+    } catch (err) {
+      console.error("ERRO [updateMessageText]", err);
+      throw new DomainError("Failed to update message text");
+    }
+  }
+
   async getMessagesLastMessageByChatId(
     chat_id: string,
   ): Promise<Message | null> {

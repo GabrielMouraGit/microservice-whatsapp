@@ -64,6 +64,8 @@ model Message {
   source     String
   forwarded  Boolean  @default(false)
   is_read    Boolean  @default(false)
+  edited     Boolean  @default(false)
+  edited_at  DateTime?
   timestamp  DateTime
   created_at DateTime @default(now())
 

@@ -22,9 +22,10 @@ export class BaileysToWhatpyMapper {
     };
     const mappedMessages = this.buildMessage(msgWithTimestamp, url);
     if (!mappedMessages) {
-      throw new Error(
-        "Failed to map message - unsupported type or missing content",
+      console.warn(
+        `⚠️ tipo de mensagem não suportado, ignorando (id=${messages.key.id})`,
       );
+      return null;
     }
 
     return {

@@ -22,6 +22,14 @@ export type ITypeSessionEvents = {
     tenantId: string;
     data: WebhookWhatsapp | null;
   };
+
+  "message.edited": {
+    sessionId: string;
+    tenantId: string;
+    messageId: string;
+    newText: string;
+    editedAt: Date;
+  };
   "session.logs": {
     sessionId: string;
     tenantId: string;

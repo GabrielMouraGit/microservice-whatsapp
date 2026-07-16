@@ -223,35 +223,70 @@ export class BaileysConnector {
     // salvar credenciais
     sock.ev.on("creds.update", saveCreds);
 
-    // sock.ev.on("messages.update", (data) => {
-    //   console.log("messages.update", JSON.stringify(data, null, 2));
-    // });
+    sock.ev.on("messages.update", async (updates) => {
+      for (const { key, update } of updates) {
+        // Baileys já desembrulha um protocolMessage MESSAGE_EDIT internamente
+        // (ver process-message.js) e reemite messages.update com o novo
+        // conteúdo em update.message.editedMessage.message — não chega mais
+        // como update.message.protocolMessage neste ponto.
+        const editedContent = update.message?.editedMessage?.message;
+
+        if (!editedContent) continue;
+
+        if (!key.id) continue;
+
+        const newText =
+          editedContent.conversation || editedContent.extendedTextMessage?.text;
+
+        if (!newText) continue;
+
+        console.log("✏️ mensagem editada detectada", {
+          messageId: key.id,
+          newText,
+        });
+
+        try {
+          await this.events.emit("message.edited", {
+            sessionId,
+            tenantId,
+            messageId: key.id,
+            newText,
+            editedAt: new Date(),
+          });
+        } catch (err) {
+          console.error("❌ erro ao processar mensagem editada:", err);
+        }
+      }
+    });
 
     sock.ev.on("messages.upsert", async (m) => {
-      const log = new EventLog(sessionId, tenantId);
-      try {
-        //replace | remove | prepend
-        if (!["notify", "append"].includes(m.type)) {
-          return;
+      //replace | remove | prepend
+      if (!["notify", "append"].includes(m.type)) {
+        return;
+      }
+
+      if (!m.messages?.length) return;
+
+      for (const msg of m.messages) {
+        if (!msg.message) continue;
+
+        if (
+          msg.key.remoteJid === "status@broadcast" ||
+          msg.broadcast ||
+          msg.message?.senderKeyDistributionMessage
+        ) {
+          continue;
         }
 
-        if (!m.messages?.length) return;
+        // log por mensagem: um erro numa mensagem não pode abortar o
+        // processamento das demais mensagens do mesmo lote
+        const log = new EventLog(sessionId, tenantId);
 
-        for (const msg of m.messages) {
-          if (!msg.message) continue;
-
-          if (
-            msg.key.remoteJid === "status@broadcast" ||
-            msg.broadcast ||
-            msg.message?.senderKeyDistributionMessage
-          ) {
-            continue;
-          }
-
+        try {
           if (msg.key.fromMe) {
             console.log("📤 mensagem enviada");
           } else {
-            console.log("📩 mensagem recebida");
+            console.log("📩 mensagem recebida", msg);
           }
 
           log.log("messages.upsert.raw", msg);
@@ -267,13 +302,15 @@ export class BaileysConnector {
 
           if (staged) {
             log.done();
-
             continue;
           }
 
           const mapped = BaileysToWhatpyMapper.map(msg);
 
-          if (!mapped) continue;
+          if (!mapped) {
+            log.done();
+            continue;
+          }
 
           await this.events.emit("message.received", {
             sessionId,
@@ -282,11 +319,12 @@ export class BaileysConnector {
           });
 
           log.done();
+        } catch (err) {
+          console.error("❌ erro ao processar mensagem recebida:", err);
+          log.fail();
+        } finally {
+          this.dispatcher.dispatch(log);
         }
-      } catch {
-        log.fail();
-      } finally {
-        this.dispatcher.dispatch(log);
       }
     });
   }
@@ -457,15 +495,19 @@ export class BaileysConnector {
     tenantId: string,
     sessionId: string,
   ): Promise<void> {
-    await this.rabbitMQPublisher.publishExchange("media.exchange", "media.upload", {
-      filePath: staged.filePath,
-      mimeType: staged.mimeType,
-      fileName: staged.fileName,
-      storagePath: `public/whatsapp/${msg.key.id}`,
-      tenantId,
-      sessionId,
-      msg,
-    });
+    await this.rabbitMQPublisher.publishExchange(
+      "media.exchange",
+      "media.upload",
+      {
+        filePath: staged.filePath,
+        mimeType: staged.mimeType,
+        fileName: staged.fileName,
+        storagePath: `public/whatsapp/${msg.key.id}`,
+        tenantId,
+        sessionId,
+        msg,
+      },
+    );
   }
 
   async logout(sessionId: string) {

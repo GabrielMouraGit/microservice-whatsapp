@@ -24,6 +24,30 @@ export const RabbitMQRegistry: RabbitMQExchangeConfig[] = [
   },
 
   {
+    exchange: "messages.edited.exchange",
+
+    type: "topic",
+
+    queues: [
+      {
+        name: "messages.edited.queue",
+
+        routingKey: "messages.edited",
+
+        retry: {
+          queue: "messages.edited.queue.retry",
+          ttl: 30000,
+        },
+
+        dlq: {
+          exchange: "messages.edited.dlx",
+          queue: "messages.edited.queue.dlq",
+        },
+      },
+    ],
+  },
+
+  {
     exchange: "media.exchange",
 
     type: "topic",
