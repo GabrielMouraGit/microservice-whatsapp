@@ -1,8 +1,25 @@
 import { Message } from "@/domain/entities/Message";
-import { IMessageRepository } from "@/domain/repositories/IMessageRepository";
+import {
+  IMessageRepository,
+  ReceivedMessageWithTenant,
+} from "@/domain/repositories/IMessageRepository";
 import { DomainError } from "@/domain/utils/DomainError";
 import { $prismaClient } from "@config/database";
-import { MessageType } from "@prisma/client";
+import { MessageType, Prisma } from "@prisma/client";
+
+const messageWithRelationsInclude = {
+  text: true,
+  image: true,
+  video: true,
+  audio: true,
+  document: true,
+  context: true,
+  contact: true,
+} satisfies Prisma.MessageInclude;
+
+type MessageWithRelations = Prisma.MessageGetPayload<{
+  include: typeof messageWithRelationsInclude;
+}>;
 
 export class MessageRepository implements IMessageRepository {
   constructor() {}
@@ -398,5 +415,160 @@ export class MessageRepository implements IMessageRepository {
       console.error("ERRO [getMessagesLastMessageByChatId]", err);
       throw new DomainError("Failed to fetch last message");
     }
+  }
+
+  async getDistinctSessionIds(): Promise<string[]> {
+    try {
+      const results = await $prismaClient.message.findMany({
+        distinct: ["session_id"],
+        select: { session_id: true },
+      });
+
+      return results.map((r) => r.session_id);
+    } catch (err) {
+      console.error("ERRO [getDistinctSessionIds]", err);
+      throw new DomainError("Failed to fetch distinct session ids");
+    }
+  }
+
+  async getLastReceivedMessages(
+    sessionId: string,
+    limit: number,
+  ): Promise<ReceivedMessageWithTenant[]> {
+    try {
+      const results = await $prismaClient.message.findMany({
+        where: {
+          session_id: sessionId,
+          from_me: false,
+        },
+        orderBy: {
+          timestamp: "desc",
+        },
+        take: limit,
+        include: messageWithRelationsInclude,
+      });
+
+      return results.map((msg) => this.mapToReceivedMessage(msg));
+    } catch (err) {
+      console.error("ERRO [getLastReceivedMessages]", err);
+      throw new DomainError("Failed to fetch last received messages");
+    }
+  }
+
+  async getReceivedMessagesSince(
+    sessionId: string,
+    since: Date,
+  ): Promise<ReceivedMessageWithTenant[]> {
+    try {
+      const results = await $prismaClient.message.findMany({
+        where: {
+          session_id: sessionId,
+          from_me: false,
+          timestamp: { gte: since },
+        },
+        orderBy: {
+          timestamp: "asc",
+        },
+        include: messageWithRelationsInclude,
+      });
+
+      return results.map((msg) => this.mapToReceivedMessage(msg));
+    } catch (err) {
+      console.error("ERRO [getReceivedMessagesSince]", err);
+      throw new DomainError("Failed to fetch received messages since date");
+    }
+  }
+
+  private mapToReceivedMessage(
+    msg: MessageWithRelations,
+  ): ReceivedMessageWithTenant {
+    return {
+      tenant_id: msg.tenant_id,
+      message: Message.restore({
+        id: msg.id,
+        chat_id: msg.chat_id,
+        type: msg.type,
+        from: msg.from,
+        from_name: msg.from_name,
+        from_me: msg.from_me,
+        source: msg.source,
+        is_read: msg.is_read,
+        timestamp: msg.timestamp,
+        created_at: msg.created_at,
+        forwarded: msg.forwarded,
+
+        text: msg.text
+          ? {
+              body: msg.text.body,
+            }
+          : undefined,
+
+        image: msg.image
+          ? {
+              file_size: msg.image.file_size || 0,
+              id: msg.image.id || "",
+              link: msg.image.link || "",
+              mime_type: msg.image.mime_type || "",
+              sha256: msg.image.sha256 || "",
+              caption: msg.image.caption || "",
+              height: msg.image.height || 0,
+              width: msg.image.width || 0,
+            }
+          : undefined,
+
+        video: msg.video
+          ? {
+              id: msg.video.id,
+              mime_type: msg.video.mime_type,
+              file_size: msg.video.file_size,
+              sha256: msg.video.sha256,
+              link: msg.video.link ?? "",
+              width: msg.video.width ?? null,
+              height: msg.video.height ?? null,
+              seconds: msg.video.seconds ?? null,
+              caption: msg.video.caption ?? null,
+            }
+          : undefined,
+
+        audio: msg.audio
+          ? {
+              id: msg.audio.id,
+              mime_type: msg.audio.mime_type,
+              file_size: msg.audio.file_size,
+              sha256: msg.audio.sha256,
+              link: msg.audio.link ?? "",
+              seconds: msg.audio.seconds ?? 0,
+            }
+          : undefined,
+
+        document: msg.document
+          ? {
+              id: msg.document.id,
+              mime_type: msg.document.mime_type,
+              file_size: msg.document.file_size,
+              sha256: msg.document.sha256,
+              filename: msg.document.filename,
+              link: msg.document.link ?? "",
+            }
+          : undefined,
+
+        context: msg.context
+          ? {
+              quoted_id: msg.context.quoted_id,
+              quoted_author: msg.context.quoted_author,
+              quoted_type: msg.context.quoted_type,
+            }
+          : undefined,
+
+        contact: msg.contact
+          ? {
+              id: msg.contact.id,
+              display_name: msg.contact.display_name,
+              vcard: msg.contact.vcard,
+              phone: msg.contact.phone,
+            }
+          : undefined,
+      }),
+    };
   }
 }

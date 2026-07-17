@@ -4,7 +4,7 @@ import {
   MessageEventLogOutput,
 } from "@/domain/repositories/IMessageEventLogRepository";
 import { $prismaClient } from "@config/database";
-import { MessageEventLog } from "@prisma/client";
+import { EventStatus, MessageEventLog } from "@prisma/client";
 
 export class MessageEventLogRepository implements IMessageEventLogRepository {
   constructor() {}
@@ -60,15 +60,31 @@ export class MessageEventLogRepository implements IMessageEventLogRepository {
     });
   }
 
-  async findPending(limit = 50): Promise<MessageEventLogOutput[]> {
+  async findPending(
+    limit = 50,
+    statuses: EventStatus[] = ["pending"],
+  ): Promise<MessageEventLogOutput[]> {
     const results = await $prismaClient.messageEventLog.findMany({
       where: {
-        status: "pending",
+        status: { in: statuses },
       },
       orderBy: {
         created_at: "asc", // importante pra FIFO
       },
       take: limit,
+    });
+
+    return results.map(this.mapToOutput);
+  }
+
+  async findCreatedSince(since: Date): Promise<MessageEventLogOutput[]> {
+    const results = await $prismaClient.messageEventLog.findMany({
+      where: {
+        created_at: { gte: since },
+      },
+      orderBy: {
+        created_at: "asc",
+      },
     });
 
     return results.map(this.mapToOutput);

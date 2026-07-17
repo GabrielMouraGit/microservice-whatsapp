@@ -1,3 +1,5 @@
+import { EventStatus } from "@prisma/client";
+
 export type MessageEventLogInput = {
   id: string;
   sessionId: string;
@@ -13,7 +15,11 @@ export interface IMessageEventLogRepository {
 
   markAsFailed(id: string): Promise<void>;
 
-  findPending(limit?: number): Promise<MessageEventLogOutput[]>;
+  findPending(
+    limit?: number,
+    statuses?: EventStatus[],
+  ): Promise<MessageEventLogOutput[]>;
+  findCreatedSince(since: Date): Promise<MessageEventLogOutput[]>;
   getAllMessagesLogs(): Promise<MessageEventLogOutput[]>;
   findById(id: string): Promise<MessageEventLogOutput | null>;
   findByMessageId(id: string): Promise<MessageEventLogOutput | null>;

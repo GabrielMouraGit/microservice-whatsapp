@@ -33,18 +33,20 @@ export const baileysConnector = new BaileysConnector(
   domainEventDispatcher,
 );
 
-export const reSyncAllMessagensUseCase = new ReSyncAllMessagensUseCase(
-  messageEventLogRepository,
-  baileysConnector,
-  eventBus,
-);
-
 export const rabbitMQPublisher = new RabbitMQPublisher();
 export const rabbitMQDlqReprocessor = new RabbitMQDlqReprocessor();
 
 const repositorySession = new SessionRepositoryPrisma();
 const messageRepository = new MessageRepository();
 const contactRepository = new ContactRepositoryPrisma();
+
+export const reSyncAllMessagensUseCase = new ReSyncAllMessagensUseCase(
+  messageEventLogRepository,
+  baileysConnector,
+  eventBus,
+  messageRepository,
+  rabbitMQPublisher,
+);
 
 const baileysRepository = new BaileysRepository(
   baileysConnector,

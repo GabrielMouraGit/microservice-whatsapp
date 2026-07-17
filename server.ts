@@ -87,6 +87,23 @@ fastify.post(
   },
 );
 
+// Reenvia, sob demanda, tudo (sucesso + falha) das últimas `windowHours`
+// horas — rede de segurança que depende do consumer ser idempotente.
+fastify.post(
+  `${PREFIX_SERVICE}/public/api/v1/resyncall/full`,
+  async (request) => {
+    const body = (request.body as Record<string, unknown>) || {};
+    const windowHours =
+      body.windowHours !== undefined ? Number(body.windowHours) : undefined;
+
+    reSyncAllMessagensUseCase.executeFull(windowHours).catch((err) => {
+      console.error("❌ erro no full resync:", err);
+    });
+
+    return { resyncFull: true };
+  },
+);
+
 let syncRunning = false;
 
 function startPeriodicSync(intervalMs = 5 * 60 * 1000) {
@@ -99,6 +116,22 @@ function startPeriodicSync(intervalMs = 5 * 60 * 1000) {
       console.error("❌ erro no sync periódico:", err);
     } finally {
       syncRunning = false;
+    }
+  }, intervalMs);
+}
+
+let fullSyncRunning = false;
+
+function startDailyFullSync(intervalMs = 24 * 60 * 60 * 1000) {
+  setInterval(async () => {
+    if (fullSyncRunning) return;
+    fullSyncRunning = true;
+    try {
+      await reSyncAllMessagensUseCase.executeFull();
+    } catch (err) {
+      console.error("❌ erro no full resync diário:", err);
+    } finally {
+      fullSyncRunning = false;
     }
   }, intervalMs);
 }
@@ -128,6 +161,7 @@ async function start() {
     });
 
     startPeriodicSync();
+    startDailyFullSync();
   } catch (err) {
     console.error("❌ erro no background init:", err);
   }
