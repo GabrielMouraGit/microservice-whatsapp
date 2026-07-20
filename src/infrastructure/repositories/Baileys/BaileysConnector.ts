@@ -42,10 +42,13 @@ export class BaileysConnector {
 
     const { sock, saveCreds } = await this.createSocket(sessionId);
 
+    // registra ANTES de ligar os listeners: o guard de identidade em
+    // handleConnection depende de this.sockets já apontar para este sock
+    // assim que o primeiro evento (ex.: qr) puder disparar
+    this.sockets.set(sessionId, sock);
+
     this.handleConnection(sock, sessionId, tenantId);
     this.bindMessages(sock, sessionId, tenantId, saveCreds);
-
-    this.sockets.set(sessionId, sock);
 
     let qr = "";
 
@@ -100,6 +103,15 @@ export class BaileysConnector {
     tenantId: string,
   ) {
     sock.ev.on("connection.update", async (update) => {
+      // um socket antigo (já substituído por uma nova tentativa de connect)
+      // pode emitir eventos atrasados/residuais; sem essa checagem, o handler
+      // reage por sessionId e acaba fechando/resetando o socket NOVO que já
+      // está registrado no lugar do antigo — é isso que causava o loop
+      // infinito de 401/500 sem nunca chegar a exibir um QR
+      if (this.sockets.get(sessionId) !== sock) {
+        return;
+      }
+
       const { connection, qr, lastDisconnect } = update;
 
       // QR GERADO
