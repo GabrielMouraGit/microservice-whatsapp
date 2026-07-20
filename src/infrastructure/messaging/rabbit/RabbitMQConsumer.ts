@@ -1,8 +1,11 @@
 import { ConfirmChannel, ConsumeMessage } from "amqplib";
 import { RabbitMQConnection } from "./RabbitMQConnection";
 import { RabbitMQRegistry } from "./RabbitMQRegistry";
+import { withTimeout } from "./timeout";
 
 const MAX_RETRIES = 20;
+const PUBLISH_CONFIRM_TIMEOUT_MS = 15000;
+const DEFAULT_HANDLER_TIMEOUT_MS = 60000;
 
 //
 // delay = ttl * multiplier^retryCount, capped at maxTtl. multiplier
@@ -30,6 +33,7 @@ export class RabbitMQConsumer {
     ) => Promise<void>,
     maxRetries: number = MAX_RETRIES,
     onDeadLetter?: (data: any, msg: ConsumeMessage) => Promise<void> | void,
+    handlerTimeoutMs: number = DEFAULT_HANDLER_TIMEOUT_MS,
   ) {
     const retryConfig = RabbitMQRegistry.flatMap((ex) => ex.queues).find(
       (q) => q.name === queue,
@@ -60,7 +64,12 @@ export class RabbitMQConsumer {
           const retryCount = Number(headers["x-retry-count"] ?? 0);
 
           try {
-            await handler(content, msg, channel);
+            await withTimeout(
+              handler(content, msg, channel),
+              handlerTimeoutMs,
+              undefined,
+              `handler timeout after ${handlerTimeoutMs}ms`,
+            );
             channel.ack(msg);
           } catch (err: any) {
             console.error("❌ erro no handler:", err);
@@ -78,7 +87,10 @@ export class RabbitMQConsumer {
                 },
               });
 
-              await channel.waitForConfirms();
+              await withTimeout(
+                channel.waitForConfirms(),
+                PUBLISH_CONFIRM_TIMEOUT_MS,
+              );
               channel.ack(msg);
               return;
             }
@@ -92,7 +104,10 @@ export class RabbitMQConsumer {
               },
             });
 
-            await channel.waitForConfirms();
+            await withTimeout(
+              channel.waitForConfirms(),
+              PUBLISH_CONFIRM_TIMEOUT_MS,
+            );
 
             channel.ack(msg);
 

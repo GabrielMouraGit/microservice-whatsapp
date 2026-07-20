@@ -1,0 +1,72 @@
+## Context
+
+The service uses a single shared `amqplib` connection (`RabbitMQConnection` singleton, never-shared per-operation channels) with an already fairly mature reconnect state machine: `connection.on("close")` triggers `reconnect()`, which retries every 5s, re-asserts topology (`RabbitMQBootstrap.setup`), and restarts every registered consumer against a fresh `connectionGeneration` (`RabbitMQConnection.ts:65-134,218-274`). Git history shows this state machine has already been hardened repeatedly (`8e61239 fix: auto reconnect`, heartbeat lowered from 30s to 10s in a later commit) — yet the "stops receiving messages, needs RabbitMQ *and* app restart" symptom persists. That mismatch is the key clue: the remaining bugs are not in the `'close'`-driven reconnect path, they're in code that never reaches it.
+
+Four independent gaps were found (detailed in `proposal.md`'s Why), and they compound:
+
+1. `RabbitMQPublisher`'s `channel.waitForConfirms()` has no timeout, and it sits directly in `BaileysConnector.bindMessages`'s sequential per-message loop (via `OnMessageReceivedHandler` → `EventBus.emit`, which awaits each handler in turn). One stuck confirm freezes all further WhatsApp message ingestion, indefinitely, with no error ever thrown.
+2. `RabbitMQConnection` never listens for `connection.on("blocked"/"unblocked")`. A broker memory/disk resource alarm stalls the connection (broker stops reading frames) without closing it, so gap 1 is hit with zero log signal and the existing reconnect logic never engages — this is the piece that most precisely explains why only a RabbitMQ *restart* (which clears the alarm and forcibly drops the connection) unblocks things.
+3. `mediaUpload.worker.ts`'s untimed `fetch()` to `MICROSERVICE_STORAGE`, plus `MediaStaging.ts`'s synchronous `fs.readFileSync`/`writeFileSync`, run on the same single Node event loop that services every RabbitMQ channel's heartbeat frames. A slow storage dependency or slow disk can starve heartbeat processing for the whole connection, not just the media queue.
+4. `RabbitMQConsumer.consume()`'s `await handler(...)` has no timeout, so a hang in any handler (including gap 3's fetch) permanently occupies one of that queue's `prefetch(10)` credits; after 10 such hangs the queue silently stops delivering.
+
+Each gap is independently sufficient to explain a partial stall; together they explain a total one, since gap 1's stuck confirm is on the connection that gap 2 can freeze broker-side, and gap 3 can trigger the very memory pressure gap 2 reacts to (a stalled consumer means unacked/ready messages pile up in RabbitMQ, growing its memory footprint).
+
+## Goals / Non-Goals
+
+**Goals:**
+- No RabbitMQ interaction the app performs (publish-confirm wait, consumer handler execution) can block forever — every one of them is bounded by a timeout that turns a hang into an ordinary, already-handled error.
+- A broker resource alarm (`blocked`/`unblocked`) is visible in logs the moment it happens, instead of being indistinguishable from a generic hang.
+- The two blocking-I/O calls found on the shared event loop (untimed `fetch`, synchronous `fs` calls) are fixed so they can't starve AMQP heartbeat processing for every queue.
+- After this change, the existing reconnect/consumer-restore machinery (already reasonably solid) is actually reachable in the failure modes that previously bypassed it — the fix leans on that existing machinery rather than replacing it.
+
+**Non-Goals:**
+- Not restructuring `BaileysConnector.bindMessages` to enqueue-and-return like the `resilient-media-upload` change did for media — that's a heavier, higher-risk architectural change. Bounding the publish-confirm wait with a timeout already prevents the indefinite freeze; if timeouts prove too blunt in practice (e.g. messages get dropped-on-timeout too often under real broker load), decoupling publish from the ingestion loop is a natural, separately-scoped follow-up (see Open Questions).
+- Not tuning the RabbitMQ broker's own `vm_memory_high_watermark`/`disk_free_limit` in this change — the dev `docker-compose.yml` broker and the (out-of-repo) prod broker are both left as-is; this change makes the app resilient to the alarm firing, not to prevent the alarm from firing. Flagged as an Open Question for a follow-up ops task.
+- Not adding a connection-health watchdog/metrics endpoint — logging the new `blocked`/`unblocked`/timeout events is enough visibility for this change; alerting on them is an ops concern outside this repo.
+- Not changing `RabbitMQRegistry`'s retry/DLQ topology, `MAX_RETRIES`, or backoff shape — orthogonal to these bugs.
+
+## Decisions
+
+**1. Timeout wrapper is a small shared helper (`withTimeout(promise, ms, onTimeout?)`), not per-call-site `Promise.race` boilerplate.**
+Every fix in this change needs the same shape: race a promise against a timer, and on timeout run cleanup (close/discard a channel) then throw a clear `Error` so the call site's *existing* try/catch handles it like any other failure — no call site needs new error-handling branches, only a bounded version of the same await. A single helper in `RabbitMQConnection.ts` (or a small new `timeout.ts` alongside it) avoids duplicating the race/cleanup logic across `RabbitMQPublisher` and `RabbitMQConsumer`. Alternative considered: `AbortSignal.timeout()` wired through amqplib calls directly — rejected because `amqplib`'s promise API (`waitForConfirms`, the `consume` handler contract) doesn't accept an `AbortSignal`; a `Promise.race`-based wrapper is the only option that doesn't touch amqplib internals.
+
+**2. Timeout values are hardcoded constants, not new env vars.**
+Matches the existing convention (`RabbitMQConsumer.ts`'s `MAX_RETRIES = 20`, `RabbitMQRegistry`'s per-queue `ttl`/`maxTtl` literals) — this project doesn't thread broker-tuning knobs through environment configuration, it hardcodes reasoned defaults in code. Proposed defaults: `PUBLISH_CONFIRM_TIMEOUT_MS = 15000` (publish confirms are normally sub-second; 15s comfortably covers a busy broker without masking a real stall for long) and a per-queue handler timeout defaulting to `60000` (media/storage calls are the slowest legitimate case; 60s is well above their expected latency and short enough that 10 hung messages don't block a queue for hours). The handler timeout is passed as a new optional parameter to `RabbitMQConsumer.consume()`, following the same override pattern already used for `maxRetries`.
+
+**3. On publish-confirm timeout, force-close the channel before throwing — never reuse a channel that might still receive a stale confirm.**
+A channel whose `waitForConfirms()` timed out is in an unknown state; if the confirm arrives late, invoking further operations on it would be relying on undefined kernel-side behavior. `RabbitMQPublisher`'s existing `finally { channel.close() }` already handles the request-scoped channel-per-call pattern; the timeout path just needs to make sure `close()` still runs (it already does, being in the `finally`) and that the timeout itself throws so the caller's own try/catch (already present at every call site: `OnMessageReceivedHandler`, `server.ts`'s route handlers, `RabbitMQDlqReprocessor`) treats it as an ordinary publish failure. No call-site changes needed beyond the timeout wrapper itself.
+
+**4. On consumer-handler timeout, treat it exactly like a thrown handler error — same retry/DLQ path, no new branch.**
+`RabbitMQConsumer.consume()`'s existing `catch (err)` block already implements the retry-count-header → `.retry` queue → eventual `.dlq` flow (`RabbitMQConsumer.ts:65-104`). Wrapping `handler(...)` in the timeout helper and having it *throw* (rather than resolve/reject some special "timed out" signal) means a timed-out handler flows through that exact same, already-tested path — it just becomes a normal retry, then eventually a DLQ entry with `x-last-error: "handler timeout after 60000ms"`. Alternative considered: a distinct "abandon and requeue immediately" path for timeouts — rejected as unnecessary complexity; timeouts should count against the same retry budget as real errors, since a handler that reliably times out is just as broken as one that reliably throws.
+
+**5. `blocked`/`unblocked` listeners log only — they do not force a reconnect.**
+`connection.on("blocked", reason)` fires when the broker itself is under a resource alarm; forcing this app to close/reopen its connection in response wouldn't clear the alarm (the alarm is broker-wide, not connection-specific) and would just add reconnect churn on top of an already-degraded broker. The listeners exist purely so `console.error`/log output makes this state visible (today: nothing is logged at all when this happens, which is the actual gap) — combined with the new timeouts (Decisions 1-4), the app now degrades gracefully (bounded retries/DLQ instead of an infinite hang) *while* blocked, and recovers automatically via `unblocked` once the broker's alarm clears, without needing a restart. Alternative considered: treat prolonged `blocked` as a trigger to proactively `connection.close()` and let the existing reconnect loop take over — rejected for this change since it doesn't address the root alarm and adds behavior that's hard to reason about (repeatedly reconnecting to a broker that's already under memory pressure could make things worse); worth revisiting only if logs show `blocked` events are common in practice.
+
+**6. `mediaUpload.worker.ts`'s `fetch()` timeout follows the exact precedent already set in `BaileysRepository.ts` (commit `8bfd56c`).**
+That commit already solved "add a timeout to an untimed `fetch()` in this codebase" for profile-photo refresh calls using `AbortSignal.timeout(...)`; reusing the identical pattern here (rather than introducing a different timeout mechanism) keeps the codebase consistent and lets this fix be a small, low-risk diff.
+
+**7. `MediaStaging.ts` switches `fs.readFileSync`/`writeFileSync` to `fs/promises` equivalents — no other behavior change.**
+The staging directory (`./session/media-pending/`), file naming, and error semantics stay identical; only the I/O calls become non-blocking. This is intentionally the smallest possible change to remove the event-loop-blocking risk (Non-Goal: not restructuring media staging's design, which `resilient-media-upload` already covers).
+
+## Risks / Trade-offs
+
+- **[Risk]** A publish-confirm timeout of 15s could, under a genuinely slow-but-recovering broker, cause a message to be treated as failed when it would have succeeded a few seconds later → **Mitigation**: for `OnMessageReceivedHandler`'s publish, this is already inside a try/catch that only logs (existing behavior — a publish failure today already doesn't crash or retry at that call site); the periodic resync (`expand-resync-route`'s republish-last-500 step) already exists as a safety net for missed publishes, so a timed-out-but-actually-fine publish self-heals within one resync cycle (≤5 min) rather than being lost.
+- **[Risk]** A 60s handler timeout could abort a legitimately slow media upload mid-flight, counting a retryable slow case against the retry budget → **Mitigation**: `media.upload.queue` already has a generous `maxRetries: 30` with exponential backoff up to 30 min per attempt (`RabbitMQRegistry.ts`), so one timed-out attempt is a small fraction of its total retry budget; 60s is also well above `MICROSERVICE_STORAGE`'s expected response time for typical WhatsApp media sizes.
+- **[Risk]** Logging `blocked`/`unblocked` without acting on it means a sustained broker resource alarm still degrades throughput (everything retries/DLQs instead of processing normally) for as long as the alarm lasts → **Accepted**: this change's scope is "never hang forever, always make forward progress or fail visibly," not "eliminate broker resource pressure" (that's the Open Question below); bounded degradation is a strict improvement over today's indefinite, invisible freeze.
+- **[Trade-off]** Hardcoded timeout constants (Decision 2) instead of env-configurable ones means changing them requires a code change + deploy → **Accepted**: matches existing project convention for this exact class of constant (`MAX_RETRIES`, per-queue `ttl`), and avoids adding configuration surface for values that should rarely need tuning post-rollout.
+
+## Migration Plan
+
+1. Add the shared timeout helper; apply it to `RabbitMQPublisher.publishQueue`/`publishExchange` and to the two `waitForConfirms()` calls inside `RabbitMQConsumer.consume()`'s retry/DLQ paths.
+2. Add the handler timeout to `RabbitMQConsumer.consume()`, threaded through as an optional parameter (default `60000`), no call-site changes required at existing `consume()` call sites unless a different value is wanted.
+3. Add `connection.on("blocked"/"unblocked")` listeners in `RabbitMQConnection.connect()`, alongside the existing `close`/`error` listeners.
+4. Add `AbortSignal.timeout(...)` to `mediaUpload.worker.ts`'s `fetch()` call.
+5. Switch `MediaStaging.ts` to async `fs/promises` calls.
+6. Deploy as a normal code rollout — no schema, topology, or queue-shape changes; `RabbitMQBootstrap.setup` stays idempotent and unaffected. Rollback is a straight revert.
+7. Manually verify against the local `docker-compose.yml` broker: simulate a stuck confirm/handler (e.g. pause the `whatsapp-app` container's network to `rabbitmq` mid-publish, or point `MICROSERVICE_STORAGE` at an unreachable host) and confirm the app logs a timeout and continues processing subsequent messages instead of freezing.
+
+## Open Questions
+
+- Should a sustained `blocked` state (e.g. longer than N minutes) escalate beyond a log line — a metric, an alert, or a proactive reconnect — once real-world frequency is observed? Deferred per Decision 5 until logs show whether this actually happens in practice.
+- Should `BaileysConnector.bindMessages`'s publish-on-receive be decoupled from the synchronous ingestion loop (mirroring `resilient-media-upload`'s enqueue-and-return pattern), rather than relying on the 15s timeout as the bound? Deferred as a Non-Goal; revisit if the timeout proves too blunt (messages timing out under normal, non-degraded load) once this change is observed in production.
+- Should the RabbitMQ broker's `vm_memory_high_watermark`/`disk_free_limit` be explicitly tuned (dev `docker-compose.yml`) and checked (prod, external broker) as a separate ops follow-up, to reduce how often `blocked` fires in the first place?

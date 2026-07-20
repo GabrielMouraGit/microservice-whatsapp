@@ -76,6 +76,14 @@ export class RabbitMQConnection {
             console.error("❌ erro conexão RabbitMQ:", err.message);
           });
 
+          connection.on("blocked", (reason) => {
+            console.error("🚫 RabbitMQ blocked:", reason);
+          });
+
+          connection.on("unblocked", () => {
+            console.log("✅ RabbitMQ unblocked");
+          });
+
           console.log("✅ RabbitMQ conectado");
 
           return;

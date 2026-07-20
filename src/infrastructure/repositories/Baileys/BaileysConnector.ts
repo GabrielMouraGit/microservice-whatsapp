@@ -485,7 +485,7 @@ export class BaileysConnector {
     // remove caracteres inválidos
     fileName = fileName.replace(/[^\w.-]/g, "_");
 
-    const filePath = stageMediaBuffer(
+    const filePath = await stageMediaBuffer(
       msg.key.id || fileName,
       type,
       Buffer.from(buffer),

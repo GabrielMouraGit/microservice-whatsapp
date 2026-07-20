@@ -1,19 +1,19 @@
-import fs from "fs";
+import fs from "fs/promises";
 import path from "path";
 
 const STAGING_DIR = path.resolve("./session/media-pending");
 
-function ensureStagingDir(): void {
-  fs.mkdirSync(STAGING_DIR, { recursive: true });
+async function ensureStagingDir(): Promise<void> {
+  await fs.mkdir(STAGING_DIR, { recursive: true });
 }
 
-export function stageMediaBuffer(
+export async function stageMediaBuffer(
   messageId: string,
   type: string,
   buffer: Buffer,
   extension: string,
-): string {
-  ensureStagingDir();
+): Promise<string> {
+  await ensureStagingDir();
 
   const safeId = messageId.replace(/[^\w.-]/g, "_");
   const safeType = type.replace(/[^\w.-]/g, "_");
@@ -24,18 +24,18 @@ export function stageMediaBuffer(
     `${safeId}-${safeType}.${safeExtension}`,
   );
 
-  fs.writeFileSync(filePath, buffer);
+  await fs.writeFile(filePath, buffer);
 
   return filePath;
 }
 
-export function readStagedMedia(filePath: string): Buffer {
-  return fs.readFileSync(filePath);
+export async function readStagedMedia(filePath: string): Promise<Buffer> {
+  return fs.readFile(filePath);
 }
 
-export function deleteStagedMedia(filePath: string): void {
+export async function deleteStagedMedia(filePath: string): Promise<void> {
   try {
-    fs.rmSync(filePath, { force: true });
+    await fs.rm(filePath, { force: true });
   } catch (err) {
     console.error("erro ao remover arquivo staged:", err);
   }

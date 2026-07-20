@@ -11,6 +11,7 @@ import { eventBus, domainEventDispatcher } from "container";
 import { WAMessage } from "@whiskeysockets/baileys";
 
 const QUEUE = "media.upload.queue";
+const STORAGE_UPLOAD_TIMEOUT_MS = 30_000;
 
 const queueConfig = RabbitMQRegistry.flatMap((ex) => ex.queues).find(
   (q) => q.name === QUEUE,
@@ -30,7 +31,7 @@ async function processMediaUpload(content: MediaUploadJob) {
   const { filePath, mimeType, fileName, storagePath, tenantId, sessionId, msg } =
     content;
 
-  const buffer = readStagedMedia(filePath);
+  const buffer = await readStagedMedia(filePath);
 
   const formData = new FormData();
 
@@ -51,6 +52,7 @@ async function processMediaUpload(content: MediaUploadJob) {
         "x-tenant-id": tenantId,
       },
       body: formData,
+      signal: AbortSignal.timeout(STORAGE_UPLOAD_TIMEOUT_MS),
     },
   );
 
@@ -70,7 +72,7 @@ async function processMediaUpload(content: MediaUploadJob) {
     });
   }
 
-  deleteStagedMedia(filePath);
+  await deleteStagedMedia(filePath);
 }
 
 async function onMediaUploadDeadLetter(content: MediaUploadJob) {
