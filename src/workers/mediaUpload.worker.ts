@@ -12,6 +12,10 @@ import { WAMessage } from "@whiskeysockets/baileys";
 
 const QUEUE = "media.upload.queue";
 const STORAGE_UPLOAD_TIMEOUT_MS = 30_000;
+// upload da storage (30s) + gravação no banco + confirmação de publish do
+// evento (até 15s) podem somar mais que os 60s padrão do consumer sob carga,
+// disparando o timeout do handler mesmo com o job ainda em andamento.
+const HANDLER_TIMEOUT_MS = 120_000;
 
 const queueConfig = RabbitMQRegistry.flatMap((ex) => ex.queues).find(
   (q) => q.name === QUEUE,
@@ -31,7 +35,20 @@ async function processMediaUpload(content: MediaUploadJob) {
   const { filePath, mimeType, fileName, storagePath, tenantId, sessionId, msg } =
     content;
 
-  const buffer = await readStagedMedia(filePath);
+  let buffer: Buffer;
+
+  try {
+    buffer = await readStagedMedia(filePath);
+  } catch (err: any) {
+    if (err?.code === "ENOENT") {
+      console.warn(
+        `⚠️ arquivo staged não encontrado (provavelmente já enviado em uma tentativa anterior que excedeu o timeout do handler): ${filePath} — descartando job sem novas tentativas`,
+      );
+      return;
+    }
+
+    throw err;
+  }
 
   const formData = new FormData();
 
@@ -100,6 +117,7 @@ export async function startMediaUploadWorker() {
     },
     queueConfig?.maxRetries,
     onMediaUploadDeadLetter,
+    HANDLER_TIMEOUT_MS,
   );
 
   console.log("🟢 media upload worker iniciado");
