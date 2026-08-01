@@ -5,6 +5,7 @@ import type { BaileysConnector } from "../src/infrastructure/repositories/Bailey
 import type { MessageEventLogRepository } from "../src/infrastructure/repositories/MessageEventLogRepository";
 import type { MessageRepository } from "../src/infrastructure/repositories/MessageRepository";
 import type { IContactRepository } from "../src/domain/repositories/IContactRepository";
+import type { ISessionRepository } from "../src/domain/repositories/ISessionRepository";
 import type { WASocket } from "@whiskeysockets/baileys";
 
 const SESSION_ID = "session-1";
@@ -90,6 +91,7 @@ function makeRepository(opts: {
     {} as unknown as MessageEventLogRepository,
     messageRepository,
     opts.contactRepository,
+    {} as unknown as ISessionRepository,
   );
 }
 

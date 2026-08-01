@@ -13,6 +13,7 @@ import {
 import { MessageEventLogRepository } from "../MessageEventLogRepository";
 import { MessageRepository } from "../MessageRepository";
 import { IContactRepository } from "@/domain/repositories/IContactRepository";
+import { ISessionRepository } from "@/domain/repositories/ISessionRepository";
 import { $config } from "@config/config";
 import ffmpeg from "fluent-ffmpeg";
 import { promises as fs } from "fs";
@@ -27,6 +28,7 @@ export class BaileysRepository {
     private messageEventLogRepository: MessageEventLogRepository,
     private messageRepository: MessageRepository,
     private contactRepository: IContactRepository,
+    private sessionRepository: ISessionRepository,
   ) {}
 
   async createSession(sessionId: string, tenantId: string) {
@@ -45,7 +47,13 @@ export class BaileysRepository {
     let sock = this.sessions.get(sessionId);
 
     if (!sock) {
-      const result = await this.connector.connect(sessionId, "");
+      const session = await this.sessionRepository.findById(sessionId);
+
+      if (!session) {
+        throw new Error(`Sessão ${sessionId} não encontrada`);
+      }
+
+      const result = await this.connector.connect(sessionId, session.tenant_id);
       sock = result.sock;
       this.sessions.set(sessionId, sock);
     }

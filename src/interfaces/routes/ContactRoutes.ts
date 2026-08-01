@@ -20,6 +20,7 @@ const baileysRepository = new BaileysRepository(
   messageEventLogRepository,
   messageRepository,
   contactRepository,
+  repositorySession,
 );
 
 const runAdapter = new RunAdapterBaileys(baileysRepository);
