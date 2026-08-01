@@ -48,6 +48,25 @@ export class ReSyncAllMessagensUseCase {
     await this.republishReceivedMessagesSince(since);
   }
 
+  // Disparado sob demanda (não no cron) quando uma sessão volta a ficar
+  // "open" depois de ter caído — cobre exatamente a janela em que ela
+  // esteve fora do ar, sem esperar o próximo ciclo periódico e sem varrer
+  // as outras sessões que não foram afetadas.
+  async executeForSession(sessionId: string, since: Date) {
+    const logs = (
+      await this.messageEventLogRepository.findCreatedSince(since)
+    ).filter((log) => log.sessionId === sessionId);
+
+    await this.processEventLogs(logs);
+
+    const received = await this.messageRepository.getReceivedMessagesSince(
+      sessionId,
+      since,
+    );
+
+    await this.publishReceivedMessages(sessionId, received);
+  }
+
   private async processEventLogs(logs: MessageEventLogOutput[]) {
     if (logs.length === 0) return;
 

@@ -5,6 +5,7 @@ import makeWASocket, {
   WAMessage,
   downloadMediaMessage,
   proto,
+  S_WHATSAPP_NET,
 } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
@@ -25,6 +26,12 @@ export class BaileysConnector {
   private qrResolvers = new Map<string, (qr: string) => void>();
   private reconnecting = new Set<string>();
   private rabbitMQPublisher = new RabbitMQPublisher();
+  // marca o instante em que a sessão saiu do ar (close/reconexão) — usado
+  // para calcular a janela de downtime quando ela volta a ficar "open"
+  private downSince = new Map<string, Date>();
+  // necessário pra registrar EventLog de incidente a partir do watchdog, que
+  // só tem o sessionId (itera SessionManager, que não guarda tenantId)
+  private tenantIdBySession = new Map<string, string>();
 
   constructor(
     private sockets: SessionManager,
@@ -46,6 +53,7 @@ export class BaileysConnector {
     // handleConnection depende de this.sockets já apontar para este sock
     // assim que o primeiro evento (ex.: qr) puder disparar
     this.sockets.set(sessionId, sock);
+    this.tenantIdBySession.set(sessionId, tenantId);
 
     this.handleConnection(sock, sessionId, tenantId);
     this.bindMessages(sock, sessionId, tenantId, saveCreds);
@@ -76,8 +84,12 @@ export class BaileysConnector {
       version,
 
       // produção
+      // "warn" (não "error"): a Baileys reporta em warn falhas de
+      // descriptografia / pedidos de reenvio de mensagem (sessão de chave
+      // fora de sincronia) — uma causa de mensagem perdida diferente da
+      // conexão zumbi, e ficava silenciada em "error"
       printQRInTerminal: false,
-      logger: pino({ level: "error" }),
+      logger: pino({ level: "warn" }),
 
       // controle de histórico
       syncFullHistory: true,
@@ -112,7 +124,24 @@ export class BaileysConnector {
         return;
       }
 
-      const { connection, qr, lastDisconnect } = update;
+      const { connection, qr, lastDisconnect, receivedPendingNotifications } =
+        update;
+
+      // sinal da própria Baileys de que o backlog de mensagens/notificações
+      // que ficaram pendentes enquanto o device parecia offline terminou de
+      // ser entregue (vem como update parcial, separado do "open")
+      if (receivedPendingNotifications) {
+        console.log(
+          `📬 sessão ${sessionId}: notificações offline pendentes entregues`,
+        );
+
+        const log = new EventLog(sessionId, tenantId);
+
+        log.log("session.offline_notifications.drained", {});
+        log.done();
+
+        this.dispatcher.dispatch(log);
+      }
 
       // QR GERADO
       if (qr) {
@@ -135,15 +164,47 @@ export class BaileysConnector {
         // 🔥 importante: limpar flag de reconexão
         this.reconnecting.delete(sessionId);
 
+        const downSince = this.downSince.get(sessionId);
+
+        this.downSince.delete(sessionId);
+
+        const downtimeMs = downSince
+          ? Date.now() - downSince.getTime()
+          : undefined;
+
+        if (downtimeMs) {
+          console.log(
+            `♻️ sessão ${sessionId} estava fora do ar há ~${Math.round(downtimeMs / 1000)}s — sincronizando janela`,
+          );
+
+          const log = new EventLog(sessionId, tenantId);
+
+          log.log("session.downtime_incident", {
+            downtimeMs,
+            downSince: downSince?.toISOString(),
+            reconnectedAt: new Date().toISOString(),
+          });
+          log.done();
+
+          this.dispatcher.dispatch(log);
+        }
+
         await this.events.emit("session.connected", {
           sessionId,
           tenantId,
+          downtimeMs,
         });
       }
 
       // DESCONECTADO
       if (connection === "close") {
         console.log("❌ fechado");
+
+        // marca o início da janela de indisponibilidade (só na primeira vez,
+        // reconexões que falham de novo não devem "resetar" o começo real)
+        if (!this.downSince.has(sessionId)) {
+          this.downSince.set(sessionId, new Date());
+        }
 
         const statusCode = (
           lastDisconnect?.error as { output?: { statusCode: number } }
@@ -535,6 +596,8 @@ export class BaileysConnector {
       }
 
       this.sockets.delete(sessionId);
+      this.downSince.delete(sessionId);
+      this.tenantIdBySession.delete(sessionId);
 
       const sessionPath = path.resolve(`./session/${sessionId}`);
 
@@ -592,6 +655,103 @@ export class BaileysConnector {
         qr: "",
       };
     }
+  }
+
+  //
+  // Watchdog: o keep-alive interno da Baileys só derruba a conexão se NENHUM
+  // frame chegar por keepAliveIntervalMs+5s — mas o WhatsApp pode continuar
+  // mandando frames de presence/receipt/ack e simplesmente parar de empurrar
+  // mensagens pro device, sem nunca fechar o socket. Nesse caso
+  // connection.update nunca emite "close" e a reconexão em handleConnection
+  // nunca dispara. Aqui forçamos uma checagem ativa: um ping IQ com timeout
+  // curto, que exige round-trip real com o servidor — se falhar, encerramos
+  // o socket nós mesmos (sock.end), o que cai no branch de reconexão
+  // genérico já existente em handleConnection.
+  //
+  private async pingHealthCheck(
+    sock: WASocket,
+    timeoutMs = 15_000,
+  ): Promise<boolean> {
+    try {
+      await sock.query(
+        {
+          tag: "iq",
+          attrs: {
+            id: sock.generateMessageTag(),
+            to: S_WHATSAPP_NET,
+            type: "get",
+            xmlns: "w:p",
+          },
+          content: [{ tag: "ping", attrs: {} }],
+        },
+        timeoutMs,
+      );
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async checkSessionHealth(sessionId: string, sock: WASocket) {
+    if (!sock.user) return; // ainda sem QR pareado, nada a checar
+    if (this.reconnecting.has(sessionId)) return; // já em reconexão
+
+    const healthy = await this.pingHealthCheck(sock);
+
+    if (healthy) return;
+    if (this.sockets.get(sessionId) !== sock) return; // trocado nesse meio-tempo
+
+    console.warn(
+      `🩺 watchdog: sessão ${sessionId} não respondeu ao ping — forçando reconexão`,
+    );
+
+    const tenantId = this.tenantIdBySession.get(sessionId);
+
+    if (tenantId) {
+      const log = new EventLog(sessionId, tenantId);
+
+      log.log("session.watchdog.zombie_detected", {
+        detectedAt: new Date().toISOString(),
+      });
+      log.fail();
+
+      this.dispatcher.dispatch(log);
+    }
+
+    await sock.end(
+      new Error("watchdog: conexão zumbi detectada (sem resposta ao ping)"),
+    );
+  }
+
+  // Detecta sockets "zumbis" (conectados mas sem entregar eventos) e força
+  // reconexão automática, sem precisar de intervenção manual/QR novo.
+  startWatchdog(intervalMs = 2 * 60_000) {
+    setInterval(() => {
+      for (const [sessionId, sock] of this.sockets.entries()) {
+        this.checkSessionHealth(sessionId, sock).catch((err) =>
+          console.error(`❌ erro no watchdog da sessão ${sessionId}:`, err),
+        );
+      }
+    }, intervalMs);
+  }
+
+  // Mantém a sessão "ativa" aos olhos do WhatsApp (mitigação complementar ao
+  // watchdog — reduz a chance do device ser tratado como parado/background
+  // e ter a entrega de mensagens degradada).
+  startPresenceKeepAlive(intervalMs = 60_000) {
+    setInterval(() => {
+      for (const [sessionId, sock] of this.sockets.entries()) {
+        if (!sock.user) continue;
+
+        sock.sendPresenceUpdate("available").catch((err) => {
+          console.error(
+            `❌ erro ao enviar presence keep-alive (${sessionId}):`,
+            err,
+          );
+        });
+      }
+    }, intervalMs);
   }
 }
 type ExtractedMedia = {

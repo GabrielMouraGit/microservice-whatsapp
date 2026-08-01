@@ -18,4 +18,8 @@ export class SessionManager {
   delete(sessionId: string) {
     this.sessions.delete(sessionId);
   }
+
+  entries(): [string, WASocket][] {
+    return Array.from(this.sessions.entries());
+  }
 }

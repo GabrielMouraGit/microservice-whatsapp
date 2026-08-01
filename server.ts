@@ -162,6 +162,9 @@ async function start() {
 
     startPeriodicSync();
     startDailyFullSync();
+
+    baileysConnector.startWatchdog();
+    baileysConnector.startPresenceKeepAlive();
   } catch (err) {
     console.error("❌ erro no background init:", err);
   }

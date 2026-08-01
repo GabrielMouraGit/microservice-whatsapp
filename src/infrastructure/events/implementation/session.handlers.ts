@@ -1,6 +1,7 @@
-import { eventBus } from "container";
+import { eventBus, reSyncAllMessagensUseCase } from "container";
 import { OnQrGeneratedHandler } from "@/application/handlers/OnQrGeneratedHandler";
 import { OnSessionConnectedHandler } from "@/application/handlers/OnSessionConnectedHandler";
+import { OnSessionReconnectedResyncHandler } from "@/application/handlers/OnSessionReconnectedResyncHandler";
 import { SessionRepositoryPrisma } from "@/infrastructure/repositories/SessionRepositoryPrisma";
 import { OnMessageReceivedHandler } from "@/application/handlers/message/OnMessageReceivedHandler";
 import { OnMessageEditedHandler } from "@/application/handlers/message/OnMessageEditedHandler";
@@ -14,6 +15,8 @@ export function registerSessionHandlers() {
   const onSessionConnectedHandler = new OnSessionConnectedHandler(
     sessionRepository,
   );
+  const onSessionReconnectedResyncHandler =
+    new OnSessionReconnectedResyncHandler(reSyncAllMessagensUseCase);
   const rabbitMQPublisher = new RabbitMQPublisher();
   const onMessageReceivedHandler = new OnMessageReceivedHandler(
     messageRepository,
@@ -25,6 +28,9 @@ export function registerSessionHandlers() {
   );
   eventBus.on("session.qr.generated", (e) => onQrGeneratedHandler.handle(e));
   eventBus.on("session.connected", (e) => onSessionConnectedHandler.handle(e));
+  eventBus.on("session.connected", (e) =>
+    onSessionReconnectedResyncHandler.handle(e),
+  );
   eventBus.on("message.received", (e) => onMessageReceivedHandler.handle(e));
   eventBus.on("message.edited", (e) => onMessageEditedHandler.handle(e));
 }

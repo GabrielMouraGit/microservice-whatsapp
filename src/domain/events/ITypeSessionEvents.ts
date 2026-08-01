@@ -10,6 +10,10 @@ export type ITypeSessionEvents = {
   "session.connected": {
     sessionId: string;
     tenantId: string;
+    // preenchido quando a sessão estava fechada/instável antes deste evento
+    // (inclui reconexões forçadas pelo watchdog) — usado para disparar um
+    // resync escopado à janela em que a sessão ficou fora do ar
+    downtimeMs?: number;
   };
 
   "session.disconnected": {
