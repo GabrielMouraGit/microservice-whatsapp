@@ -11,11 +11,14 @@ import { eventBus, domainEventDispatcher } from "container";
 import { WAMessage } from "@whiskeysockets/baileys";
 
 const QUEUE = "media.upload.queue";
-const STORAGE_UPLOAD_TIMEOUT_MS = 30_000;
-// upload da storage (30s) + gravação no banco + confirmação de publish do
+// 30s bastava pra fotos/áudios, mas estourava ("The operation was aborted
+// due to timeout") em vídeos de dezenas de MB — o abort é do próprio fetch
+// (AbortSignal.timeout), não de nginx/Kong. Folga pra upload de até 1GB.
+const STORAGE_UPLOAD_TIMEOUT_MS = 300_000;
+// upload da storage (300s) + gravação no banco + confirmação de publish do
 // evento (até 15s) podem somar mais que os 60s padrão do consumer sob carga,
 // disparando o timeout do handler mesmo com o job ainda em andamento.
-const HANDLER_TIMEOUT_MS = 120_000;
+const HANDLER_TIMEOUT_MS = STORAGE_UPLOAD_TIMEOUT_MS + 90_000;
 
 const queueConfig = RabbitMQRegistry.flatMap((ex) => ex.queues).find(
   (q) => q.name === QUEUE,
